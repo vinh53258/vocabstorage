@@ -49,8 +49,8 @@
 
         .content { max-width: 700px; margin: 0 auto; width: 100%; padding: 20px 20px 300px 20px; }
         
-        /* Word Card & Section titles with offset for header */
-        .word-card { background: white; padding: 20px; border-radius: 15px; margin-bottom: 15px; border-left: 6px solid var(--primary); box-shadow: 0 4px 6px rgba(0,0,0,0.05); position: relative; transition: 0.3s; }
+        /* Word Card & Section titles */
+        .word-card { background: white; padding: 20px; border-radius: 15px; margin-bottom: 15px; border-left: 6px solid var(--primary); box-shadow: 0 4px 6px rgba(0,0,0,0.05); position: relative; transition: 0.3s; scroll-margin-top: 210px; }
         .section-title { font-size: 28px; font-weight: 800; margin: 40px 0 20px 0; color: #334155; border-bottom: 3px solid #f1f5f9; scroll-margin-top: 210px; }
 
         .flash-effect { background: #fff59d !important; transform: scale(1.03); box-shadow: 0 0 15px rgba(255, 235, 59, 0.5); }
@@ -402,7 +402,7 @@
             save(); renderMain(); renderRightNav();
             status.innerText = "Đã ghi nhận kiến thức mới!";
             wordInp.value = "";
-            scrollToId(`word-${entry.id}`, true);
+            scrollToId(`word-${entry.id}`, true); // Tự động cuộn đến từ vừa thêm
             setTimeout(()=>status.innerText="", 2500);
         } catch(e) { status.innerText = "Lỗi kết nối!"; }
     }
@@ -416,6 +416,7 @@
         setTimeout(() => {
             const el = document.getElementById(id);
             if(el) {
+                // Sử dụng scrollIntoView kết hợp với scroll-margin-top đã set trong CSS (210px)
                 el.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 if(flash) {
                     el.classList.add('flash-effect');
