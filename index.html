@@ -2207,9 +2207,15 @@
                 // OR "Multiple Choice"? 
                 // The user said "randomly toggle display Vi ask En and reverse".
 
+                // FORCE QUIZ MODE (Vi -> En) ALWAYS as per User Request
+                item.mode = 'quiz';
+
+                /* 
+                // OLD RANDOM LOGIC
                 if (!item.mode) {
-                    item.mode = Math.random() > 0.5 ? 'quiz' : 'reverse_quiz'; // Restore randomization
-                }
+                    item.mode = Math.random() > 0.5 ? 'quiz' : 'reverse_quiz'; 
+                } 
+                */
 
                 if (item.mode === 'quiz') {
                     // QUIZ MODE (VI -> EN)
