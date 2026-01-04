@@ -598,8 +598,8 @@
 
         .review-card {
             width: 95%;
-            max-width: 520px;
-            min-height: 400px;
+            max-width: 700px;
+            min-height: 500px;
             padding: 45px 30px;
             border-radius: 35px;
             background: white;
@@ -721,6 +721,32 @@
             font-weight: 600;
             font-size: 15px;
             transition: 0.2s;
+        }
+
+        #drillWarning {
+            position: fixed;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            background: white;
+            border-left: 5px solid #ef4444;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.2);
+            z-index: 5000;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-family: 'Segoe UI', sans-serif;
+            min-width: 300px;
+        }
+
+        #drillWarning.active {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
         }
     </style>
 </head>
@@ -909,6 +935,37 @@
         </div>
     </div>
 
+    <!-- RETRY CONFIRM MODAL -->
+    <div id="retryOverlay"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(30, 41, 59, 0.4); z-index:4500; align-items:flex-start; justify-content:center; padding-top:20vh; backdrop-filter:blur(5px); opacity:0; transition:opacity 0.3s;">
+        <div
+            style="background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); padding:30px; border-radius:24px; width:350px; max-width:90%; box-shadow:0 20px 40px rgba(0,0,0,0.2); text-align:center; border:1px solid #e2e8f0; position:relative;">
+            <div
+                style="width:50px; height:50px; background:#fee2e2; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px auto; font-size:24px;">
+                🤔</div>
+            <h3 style="margin:0 0 10px 0; color:#334155;">ÔN TẬP LẠI?</h3>
+            <p id="retryText" style="color:#64748b; font-size:15px; line-height:1.5; margin-bottom:25px;"></p>
+            <div style="display:flex; gap:12px;">
+                <button onclick="window.handleRetryChoice(false)"
+                    style="flex:1; padding:10px; border-radius:12px; border:1px solid #e2e8f0; background:white; color:#64748b; font-weight:700; cursor:pointer; transition:0.2s;">Không
+                    cần</button>
+                <button onclick="window.handleRetryChoice(true)"
+                    style="flex:1; padding:10px; border-radius:12px; border:none; background:var(--primary); color:white; font-weight:700; cursor:pointer; transition:0.2s; box-shadow:0 4px 10px rgba(37,99,235,0.2);">Có,
+                    ôn lại!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DRILL WARNING TOAST -->
+    <div id="drillWarning">
+        <div style="font-size: 24px; color:#ef4444;">🛑</div>
+        <div>
+            <div style="font-weight: 800; color: #7f1d1d; font-size: 15px;">CHƯA HOÀN THÀNH</div>
+            <div style="font-size: 13px; color: #b91c1c; margin-top: 2px;">Bạn cần nhập đúng đáp án trước khi qua từ
+                mới!</div>
+        </div>
+    </div>
+
     <div class="main-wrapper" id="mainScroll">
         <div class="header">
             <div class="input-box">
@@ -1071,6 +1128,18 @@
             db = JSON.parse(historyStack[historyStack.length - 1]);
             save();
             renderAll();
+        }
+
+        function showDrillWarning() {
+            const el = document.getElementById('drillWarning');
+            el.classList.add('active');
+
+            // Clear prev timeout if spamming
+            if (window.drillTimeout) clearTimeout(window.drillTimeout);
+
+            window.drillTimeout = setTimeout(() => {
+                el.classList.remove('active');
+            }, 3000);
         }
 
         function redo() {
@@ -1302,17 +1371,33 @@
             for (let k = 0; k < limit; k++) workers.push(worker());
             await Promise.all(workers);
 
-            if (stopImportFlag) {
-                status.innerText = `Đã dừng! Thêm được ${addedCount} từ.`;
-            } else {
-                if (addedCount > 0) {
-                    pushHistory();
-                    save();
-                    renderAll();
-                }
-                status.innerText = `Hoàn tất! Đã thêm ${addedCount} từ vựng Tiếng Anh chuẩn.`;
-                setTimeout(() => { if (!stopImportFlag) closeDocImport(); }, 2500);
+            if (addedCount > 0) {
+                pushHistory();
+                save();
+                renderAll();
             }
+            status.innerText = `Hoàn tất! Đã thêm ${addedCount} từ vựng Tiếng Anh chuẩn.`;
+            setTimeout(() => { if (!stopImportFlag) closeDocImport(); }, 2500);
+        }
+
+
+        // RETRY MODAL LOGIC
+        function showRetryModal(word, callback) {
+            const ov = document.getElementById('retryOverlay');
+            const txt = document.getElementById('retryText');
+            // Reset state
+            ov.style.opacity = '0';
+            ov.style.display = 'flex';
+            setTimeout(() => ov.style.opacity = '1', 10);
+
+            txt.innerHTML = `Bạn chưa thuộc từ <b style="color:var(--danger)">"${word}"</b> à?<br>Có muốn thêm vào cuối danh sách để ôn lại không?`;
+
+            // Bind Buttons
+            window.handleRetryChoice = (choice) => {
+                ov.style.opacity = '0';
+                setTimeout(() => ov.style.display = 'none', 300);
+                callback(choice);
+            };
         }
 
         // Global Sort Mode (Default to A-Z as before, but can be toggled)
@@ -1439,20 +1524,74 @@
             group.className = 'section-group';
 
             // Header
-            const header = createSectionHeader(titleText, sectionId);
+            const header = document.createElement("div");
+            header.className = "section-title";
+            header.id = sectionId;
 
-            // Sort Select
-            header.appendChild(createSortSelect(sortKey, sortType));
-
-            // Delete Button (if topic)
             if (isTopic) {
-                const tName = titleText.replace('# ', '');
+                const tName = titleText.replace('# ', ''); // Raw topic name
+
+                // ContentEditable Title
+                const titleSpan = document.createElement("span");
+                titleSpan.innerText = `# ${tName}`;
+                titleSpan.contentEditable = "true";
+                titleSpan.spellcheck = false;
+                titleSpan.style.cursor = "text";
+                titleSpan.style.outline = "none";
+                titleSpan.style.borderBottom = "1px dashed transparent";
+                titleSpan.style.transition = "0.2s";
+
+                // Styles for interaction
+                titleSpan.onfocus = () => { titleSpan.style.borderBottom = "1px solid var(--primary)"; titleSpan.style.background = "#eff6ff"; };
+                titleSpan.onblur = () => {
+                    titleSpan.style.borderBottom = "1px dashed transparent";
+                    titleSpan.style.background = "transparent";
+                    updateTopicName(tName, titleSpan.innerText);
+                };
+                titleSpan.onkeydown = (e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); titleSpan.blur(); }
+                };
+
+                header.appendChild(titleSpan);
+
+                // DELETE BUTTON
                 const delBtn = document.createElement("button");
                 delBtn.className = "btn-delete-topic";
                 delBtn.innerText = "Xóa Topic";
-                delBtn.style.marginLeft = "0";
                 delBtn.onclick = (e) => { e.stopPropagation(); askDeleteTopic(tName); };
-                header.appendChild(delBtn);
+
+                // REVIEW TOPIC BUTTON
+                const revBtn = document.createElement("button");
+                revBtn.className = "btn-delete-topic"; // Reuse style for now, maybe change color
+                revBtn.innerText = "📖 Ôn Topic này";
+                revBtn.style.background = "#dbeafe";
+                revBtn.style.color = "#1e40af";
+                revBtn.style.border = "1px solid #bfdbfe";
+                revBtn.style.marginLeft = "8px";
+                revBtn.onclick = (e) => { e.stopPropagation(); reviewTopic(tName); };
+
+                // Group Buttons
+                const rightGroup = document.createElement("div");
+                rightGroup.style.display = "flex";
+                rightGroup.style.alignItems = "center";
+                rightGroup.style.gap = "8px"; // Reduced gap
+                rightGroup.style.marginLeft = "auto";
+
+                rightGroup.appendChild(createSortSelect(sortKey, sortType));
+                rightGroup.appendChild(revBtn);
+                rightGroup.appendChild(delBtn);
+
+                header.appendChild(rightGroup);
+
+            } else {
+                header.innerText = titleText;
+                // Standard Right Group (Sort Only)
+                const rightGroup = document.createElement("div");
+                rightGroup.style.display = "flex";
+                rightGroup.style.alignItems = "center";
+                rightGroup.style.marginLeft = "auto";
+                rightGroup.appendChild(createSortSelect(sortKey, sortType));
+                header.appendChild(rightGroup);
             }
 
             group.appendChild(header);
@@ -1599,6 +1738,37 @@
             });
         }
 
+        function updateTopicName(oldName, newDisplayString) {
+            let cleanNew = newDisplayString.replace('#', '').trim(); // Remove leading #
+            // Fix double spaces
+            cleanNew = cleanNew.replace(/\s+/g, ' ');
+
+            if (cleanNew && cleanNew !== oldName) {
+                // Check dupes not needed, just merge if exists? or block?
+                // Let's merge. If renamed to existing topic, words move there.
+
+                let count = 0;
+                db.words.forEach(w => {
+                    if (w.topic === oldName) {
+                        w.topic = cleanNew;
+                        count++;
+                    }
+                });
+
+                if (count > 0) {
+                    pushHistory(); save(); renderAll();
+                } else {
+                    // Revert visual if nothing changed (should happen via RenderAll anyway)
+                    renderAll();
+                }
+            } else {
+                // Revert if invalid or same
+                renderAll();
+            }
+        }
+
+        // Removed askEditTopic (Direct Edit Now)
+
         function askDeleteTopic(topicName) {
             showConfirm(`Xóa toàn bộ từ trong topic "${topicName}"?`, () => {
                 db.words = db.words.filter(w => w.topic !== topicName);
@@ -1629,8 +1799,9 @@
             if (existing) {
                 status.style.color = "var(--danger)";
                 status.innerText = "Tôi yêu cầu em học kĩ từ này!";
-                const suffix = existing.isPhrase ? 'phrase' : 'az';
-                scrollToId(`word-${existing.id}-${suffix}`, true);
+
+                // AUTO SCROLL TO EXISTING (Pass Object)
+                scrollToWord(existing);
                 return;
             }
 
@@ -1669,8 +1840,10 @@
                 pushHistory(); save(); renderAll();
                 status.innerText = "Added successfully!";
                 wordInp.value = "";
-                const suffix = entry.isPhrase ? 'phrase' : 'az';
-                scrollToId(`word-${entry.id}-${suffix}`, true);
+
+                // AUTO SCROLL TO NEW WORD (Pass Object)
+                setTimeout(() => scrollToWord(entry), 300);
+
                 setTimeout(() => status.innerText = "", 2500);
             } catch (e) {
                 console.error(e);
@@ -1746,23 +1919,52 @@
         }
 
         function scrollToId(id, flash = false) {
-            setTimeout(() => {
-                const el = document.getElementById(id);
-                if (el) {
-                    safeScrollTo(el, 'center');
-                    if (flash) {
-                        el.classList.add('flash-effect');
-                        el.style.transition = 'background 0.5s';
-                        const oldBg = el.style.background;
-                        el.style.background = '#fef08a';
+            const el = document.getElementById(id);
+            if (!el) return;
+            // Use scrollToWord logic
+            safeScrollTo(el, 'center');
+            if (flash) flashElement(el);
+        }
 
-                        setTimeout(() => {
-                            el.classList.remove('flash-effect');
-                            el.style.background = oldBg || 'white';
-                        }, 1000);
-                    }
-                }
-            }, 100);
+        function scrollToWord(wordObj) {
+            let el = null;
+            // PRIORITY 1: TOPIC (User Request: Jump to Topic section if applicable)
+            if (wordObj.topic) {
+                el = document.getElementById(`word-${wordObj.id}-topic`);
+            }
+            // PRIORITY 2: PHRASE
+            if (!el && wordObj.isPhrase) {
+                el = document.getElementById(`word-${wordObj.id}-phrase`);
+            }
+            // PRIORITY 3: STARRED (Challenging)
+            if (!el && wordObj.star) {
+                el = document.getElementById(`word-${wordObj.id}-star`);
+            }
+            // PRIORITY 4: MAIN (A-Z)
+            if (!el) {
+                el = document.getElementById(`word-${wordObj.id}-az`);
+            }
+
+            // Fallback: Find ANY instance
+            if (!el) {
+                el = document.querySelector(`.word-card[data-wid="${wordObj.id}"]`);
+            }
+
+            if (el) {
+                safeScrollTo(el, 'center');
+                flashElement(el);
+            }
+        }
+
+        function flashElement(el) {
+            el.classList.add('flash-effect');
+            el.style.transition = 'background 0.5s';
+            const oldBg = el.style.background;
+            el.style.background = '#fef08a'; // Yellow
+            setTimeout(() => {
+                el.classList.remove('flash-effect');
+                el.style.background = oldBg || 'white';
+            }, 1000);
         }
 
 
@@ -1985,19 +2187,359 @@
             const item = reviewQueue[currentRevIdx];
             const speakBtn = document.getElementById('speakBtn');
             container.innerHTML = '';
+
+            // Clear any previous classes
+            container.className = 'review-card';
+
             if (item.type === 'header') {
                 speakBtn.style.visibility = 'hidden';
                 container.innerHTML = `<div style="font-size: 20px; color: #94a3b8; font-weight: 600;">BẮT ĐẦU ÔN</div><div style="font-size: 32px; font-weight: 800; color: var(--secondary); margin-top: 20px;">${item.title}</div>`;
             } else {
                 speakBtn.style.visibility = 'visible';
                 const w = item.data;
-                container.innerHTML = `<div style="color:#94a3b8; font-weight:700; font-size: 12px; margin-bottom:10px;">ÔN TẬP</div><div class="review-word">${w.word}</div><div class="pos-tag">${w.pos ? `(${w.pos})` : ''}</div><div class="review-meaning">${w.meaning}</div><div class="review-ex">${w.example || '...'}</div>`;
+
+                // RANDOM MODES: 
+                // 1. Quiz (Vi -> En Input)
+                // 2. Reverse (En -> Vi Multiple Choice? Or just Flashcard?)
+                // User asked for: "Show Vietnamese ask English AND Vice Versa".
+                // Reverse Quiz (Input Vietnamese) is hard because of accents.
+                // Let's do Reverse Flashcard (Show English -> Think Meaning -> Reveal)?
+                // OR "Multiple Choice"? 
+                // The user said "randomly toggle display Vi ask En and reverse".
+
+                if (!item.mode) {
+                    item.mode = Math.random() > 0.5 ? 'quiz' : 'reverse_quiz'; // Restore randomization
+                }
+
+                if (item.mode === 'quiz') {
+                    // QUIZ MODE (VI -> EN)
+                    const isSolved = item.solved || item.revealed;
+                    const val = item.userVal || (isSolved ? w.word : "");
+                    const inputColor = item.correct ? '#f0fdf4' : (item.solved || item.revealed ? '#fff7ed' : '#f8fafc');
+                    const borderColor = item.correct ? 'var(--success)' : (item.solved || item.revealed ? '#f59e0b' : '#e2e8f0');
+
+                    container.innerHTML = `
+                        <div style="color:#94a3b8; font-weight:700; font-size: 13px; margin-bottom:15px; text-transform:uppercase; letter-spacing:1px;">Gõ từ tiếng Anh</div>
+                        <div class="review-meaning" style="font-size: 32px; margin: 10px 0; color: var(--primary);">${w.meaning}</div>
+                        <div class="pos-tag" style="margin-bottom:20px;">${w.pos ? `(${w.pos})` : ''}</div>
+                        
+                        <div style="margin-top: 5px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 15px;">
+                            <input type="text" id="reviewInput" autocomplete="off" placeholder="English word..." value="${val}"
+                                style="font-size: 24px; padding: 12px; text-align: center; border: 2px solid ${borderColor}; border-radius: 16px; width: 90%; background:${inputColor}; font-weight:bold; color:var(--text-main); outline:none; transition:0.3s;"
+                                ${isSolved ? 'readonly' : ''}
+                                onfocus="if(!this.readOnly){this.style.borderColor='var(--primary)'; this.style.background='white'}"
+                                onblur="if(!this.readOnly){this.style.borderColor='${borderColor}'; this.style.background='${inputColor}'}"
+                                onkeypress="handleReviewKeyPress(event, '${w.word.replace(/'/g, "\\'")}', 'quiz')">
+                            
+                            <div style="display: flex; gap: 10px; ${isSolved ? 'opacity:0.5; pointer-events:none;' : ''}">
+                                <button onclick="showReviewHint('${w.word.replace(/'/g, "\\'")}')" style="padding: 10px 18px; background: #fef9c3; color: #854d0e; border: 1px solid #fde047; border-radius: 12px; cursor: pointer; font-weight: bold; font-size:13px; transition:0.2s;">💡 Gợi ý</button>
+                                <button onclick="checkReviewAnswer('${w.word.replace(/'/g, "\\'")}', 'quiz')" style="padding: 10px 25px; background: var(--primary); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; font-size:14px; box-shadow:0 4px 6px -1px rgba(37,99,235,0.2);">Kiểm tra</button>
+                            </div>
+                            <div id="reviewFeedback" style="height: 24px; font-weight: bold; margin-top: 5px; font-size:16px; color:${item.correct ? 'var(--success)' : '#d97706'}">
+                                ${item.correct ? "Chính xác! 🎉 (Enter để tiếp)" : (item.solved ? "Đáp án:" : "")} 
+                                ${item.solved && !item.correct ? `<b style="color:var(--primary); font-size:18px;">${w.word}</b>` : (item.revealed && !item.solved ? `<b style="color:var(--primary); font-size:18px;">${w.word}</b>` : '')}
+                            </div>
+                            ${item.correct ? `<div style="font-size:12px; color:#94a3b8; animation: pulse 2s infinite;">Ấn Enter để qua từ tiếp theo</div>` : ''}
+                        </div>
+                    `;
+                    // Focus if fresh
+                    if (!isSolved) setTimeout(() => { if (document.getElementById('reviewInput')) document.getElementById('reviewInput').focus(); }, 150);
+
+                } else {
+                    // REVERSE QUIZ (EN -> VI INPUT)
+                    const isSolved = item.solved || item.revealed;
+                    const val = item.userVal || (isSolved ? w.meaning : "");
+                    // Show standard input
+                    const inputColor = item.correct ? '#f0fdf4' : (item.solved || item.revealed ? '#fff7ed' : '#f8fafc');
+                    const borderColor = item.correct ? 'var(--success)' : (item.solved || item.revealed ? '#f59e0b' : '#e2e8f0');
+
+                    container.innerHTML = `
+                        <div style="color:#94a3b8; font-weight:700; font-size: 13px; margin-bottom:15px; text-transform:uppercase; letter-spacing:1px;">Nghĩa tiếng Việt là gì?</div>
+                        <div class="review-word" style="font-size: 45px; margin-bottom: 20px;">${w.word}</div>
+                        <div class="pos-tag" style="margin-bottom:20px;">${w.pos ? `(${w.pos})` : ''}</div>
+                        
+                        <div style="margin-top: 5px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 15px;">
+                            <input type="text" id="reviewInput" autocomplete="off" placeholder="Nhập nghĩa tiếng Việt..." value="${val}"
+                                style="font-size: 20px; padding: 12px; text-align: center; border: 2px solid ${borderColor}; border-radius: 16px; width: 90%; background:${inputColor}; font-weight:bold; color:var(--text-main); outline:none; transition:0.3s;"
+                                ${isSolved ? 'readonly' : ''}
+                                onfocus="if(!this.readOnly){this.style.borderColor='var(--primary)'; this.style.background='white'}"
+                                onblur="if(!this.readOnly){this.style.borderColor='${borderColor}'; this.style.background='${inputColor}'}"
+                                onkeypress="handleReviewKeyPress(event, '${w.meaning.replace(/'/g, "\\'")}', 'reverse_quiz')">
+                            
+                            <div style="display: flex; gap: 10px; ${isSolved ? 'opacity:0.5; pointer-events:none;' : ''}">
+                                <button onclick="showReviewHint('${w.meaning.replace(/'/g, "\\'")}')" style="padding: 10px 18px; background: #fef9c3; color: #854d0e; border: 1px solid #fde047; border-radius: 12px; cursor: pointer; font-weight: bold; font-size:13px; transition:0.2s;">💡 Gợi ý</button>
+                                <button onclick="checkReviewAnswer('${w.meaning.replace(/'/g, "\\'")}', 'reverse_quiz')" style="padding: 10px 25px; background: var(--primary); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; font-size:14px; box-shadow:0 4px 6px -1px rgba(37,99,235,0.2);">Kiểm tra</button>
+                            </div>
+                            <div id="reviewFeedback" style="height: 24px; font-weight: bold; margin-top: 5px; font-size:16px; color:${item.correct ? 'var(--success)' : '#d97706'}">
+                                ${item.correct ? "Chính xác! 🎉 (Enter để tiếp)" : (item.solved ? "Đáp án:" : "")} 
+                                ${item.solved && !item.correct ? `<b style="color:var(--primary); font-size:18px;">${w.meaning}</b>` : (item.revealed && !item.solved ? `<b style="color:var(--primary); font-size:18px;">${w.meaning}</b>` : '')}
+                            </div>
+                            ${item.correct ? `<div style="font-size:12px; color:#94a3b8; animation: pulse 2s infinite;">Ấn Enter để qua từ tiếp theo</div>` : ''}
+                        </div>
+                    `;
+                    if (!isSolved) setTimeout(() => { if (document.getElementById('reviewInput')) document.getElementById('reviewInput').focus(); }, 150);
+                }
             }
+            // Update Controls
             document.getElementById('prevRev').disabled = currentRevIdx === 0;
             document.getElementById('nextRev').innerText = currentRevIdx === reviewQueue.length - 1 ? '✔' : '▶';
         }
 
+        function revealReverse() {
+            const item = reviewQueue[currentRevIdx];
+            item.revealed = true;
+            item.solved = true; // Treated as solved
+            renderReviewSlide();
+            speak(item.data.word);
+        }
+
+        function handleReviewKeyPress(e, correctWord, mode) {
+            if (e.key === 'Enter') {
+                const item = reviewQueue[currentRevIdx];
+                if (item.solved) {
+                    // If already solved, Enter -> Next
+                    changeReview(1);
+                } else {
+                    // Check Answer
+                    checkReviewAnswer(correctWord, mode);
+                }
+            }
+        }
+
+        function reviewTopic(topicName) {
+            const list = db.words.filter(w => w.topic === topicName);
+            if (list.length === 0) { alert("Topic trống!"); return; }
+            prepareReviewQueue(list);
+
+            // Auto Update Title to Context
+            // Currently prepareReviewQueue sets generic headers. 
+            // We can override/inject.
+            // Queue format: Header -> Words.
+            reviewQueue[0].title = `Topic: ${topicName}`;
+            renderReviewSlide();
+        }
+
+        function checkReviewAnswer(correctWord, mode) {
+            const inp = document.getElementById('reviewInput');
+            const feedback = document.getElementById('reviewFeedback');
+            const item = reviewQueue[currentRevIdx];
+
+            if (!inp || item.solved || item.revealed) return; // Prevent spam or re-check
+
+            const val = inp.value.trim().toLowerCase();
+            const target = correctWord.trim().toLowerCase();
+
+            let isCorrect = false;
+
+            if (mode === 'reverse_quiz') {
+                // FLEXIBLE MATCHING FOR VIETNAMESE (En -> Vi)
+                // Normalize function: remove accents? No, accents are important for meaning.
+                // Just lowercase and trim.
+
+                // Helper to clean punctuation
+                const clean = (s) => s.replace(/[.,;:"'!]/g, '').trim().toLowerCase();
+
+                const userClean = clean(val);
+                const ex = clean(target);
+
+                // 1. Direct match (cleaned)
+                if (userClean === ex) isCorrect = true;
+                else {
+                    // 2. Split by common delimiters (comma, semicolon, slash, dash)
+                    // Example: "đóng vai trò, làm như là" -> ["đóng vai trò", "làm như là"]
+                    const correctParts = target.split(/[,;\/\-\(\)]+/).map(s => clean(s)).filter(s => s.length > 0);
+
+                    if (correctParts.some(p => p === userClean)) {
+                        isCorrect = true;
+                    } else {
+                        // 3. REMOVED PARTIAL MATCHING
+                        // User requested STRICT matching ("nhập đầy đủ nghĩa").
+                        // So "đóng vai trò" is ONLY correct if "đóng vai trò" is one of the synonym parts.
+                        // If the answer is "đóng vai trò như một sự răn đe", the user must type that specific phrase (cleaned).
+                        isCorrect = false;
+                    }
+                }
+            } else {
+                // EXACT MATCH FOR ENGLISH
+                if (val === target) isCorrect = true;
+            }
+
+            if (isCorrect) {
+                // CORRECT
+                item.correct = true;
+                item.solved = true;
+                item.userVal = inp.value;
+                item.inDrill = false;
+
+                feedback.style.color = 'var(--success)';
+                feedback.innerHTML = `Chính xác! 🎉 (Enter để tiếp)`;
+                inp.style.borderColor = 'var(--success)';
+                inp.style.background = '#f0fdf4';
+                inp.readOnly = true;
+                if (item.data.word) speak(item.data.word);
+
+                // Add Pulse Animation text
+                const nextHint = document.createElement("div");
+                nextHint.style.cssText = "font-size:12px; color:#94a3b8; animation: pulse 2s infinite; margin-top:5px;";
+                nextHint.innerText = "Ấn Enter để qua từ tiếp theo";
+                if (inp.parentNode) inp.parentNode.appendChild(nextHint);
+
+                // Unblock Nav
+                document.getElementById('nextRev').style.opacity = '1';
+                document.getElementById('nextRev').style.pointerEvents = 'auto';
+
+                // KEEP FOCUS FOR ENTER KEY
+                inp.focus();
+
+            } else {
+                // INCORRECT
+                item.correct = false;
+
+                // Visual Shake
+                inp.style.borderColor = 'var(--danger)';
+                inp.style.background = '#fef2f2';
+                setTimeout(() => { inp.style.transform = 'translateX(5px)'; setTimeout(() => inp.style.transform = 'translateX(-5px)', 50); setTimeout(() => inp.style.transform = 'translate(0)', 100); }, 0);
+
+                if (!item.inDrill) {
+                    // FIRST MISTAKE -> SHOW RETRY MODAL
+                    showRetryModal(correctWord, (choice) => {
+                        item.inDrill = true; // Enter Drill Mode
+                        if (choice) {
+                            // Clone to end
+                            const clone = JSON.parse(JSON.stringify(item));
+                            delete clone.solved; delete clone.revealed; delete clone.correct; delete clone.userVal; delete clone.inDrill;
+                            reviewQueue.push(clone);
+                        }
+                        // Whether yes or no, we enter Drill Mode now.
+                        // Flash Answer then clear
+                        flashDrillAnswer(correctWord);
+                    });
+                } else {
+                    // SUBSEQUENT MISTAKE (Already in Drill) -> Just Flash Answer
+                    flashDrillAnswer(correctWord);
+                }
+            }
+        }
+
+        function flashDrillAnswer(correctWord) {
+            const feedback = document.getElementById('reviewFeedback');
+            const inp = document.getElementById('reviewInput');
+
+            // Show Correct Answer
+            feedback.innerHTML = `Chưa đúng! Đáp án: <b style="color:var(--primary); font-size:18px;">${correctWord}</b>`;
+            feedback.style.color = 'var(--danger)';
+
+            // Block Input temporarily?
+            inp.disabled = true;
+
+            // Wait 3s then Hide
+            setTimeout(() => {
+                feedback.innerHTML = ""; // Clear answer
+                inp.value = ""; // Force retype
+                inp.disabled = false;
+                inp.style.background = 'white';
+                inp.style.borderColor = '#e2e8f0';
+                inp.focus();
+            }, 3000);
+        }
+
+        function showReviewHint(word) {
+            const item = reviewQueue[currentRevIdx];
+            if (item.solved || item.revealed) return;
+
+            const inp = document.getElementById('reviewInput');
+            if (!inp) return;
+
+            const val = inp.value;
+            const correct = word.trim();
+            const partsBySpace = correct.split(/\s+/);
+
+            // LOGIC: If >2 words (Phrase), hint whole word. Else char.
+            if (partsBySpace.length > 2) {
+                // PHRASE MODE (Word Hint)
+                // Find how many words match so far
+                // Simple regex match from start
+                const currentParts = val.trim().split(/\s+/);
+                let matchIndex = 0;
+
+                // If input is empty, matching is 0
+                if (val.trim().length > 0) {
+                    for (let i = 0; i < partsBySpace.length; i++) {
+                        if (currentParts[i] && currentParts[i].toLowerCase() === partsBySpace[i].toLowerCase()) {
+                            matchIndex++;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+
+                if (matchIndex < partsBySpace.length) {
+                    // Reveal up to matchIndex + 1 words
+                    const nextString = partsBySpace.slice(0, matchIndex + 1).join(' ');
+                    inp.value = nextString;
+                }
+            } else {
+                // WORD MODE (Char Hint)
+                let matchCount = 0;
+                const vLen = val.length;
+                const cLen = correct.length;
+                for (let i = 0; i < Math.min(vLen, cLen); i++) {
+                    if (val[i].toLowerCase() === correct[i].toLowerCase()) matchCount++;
+                    else break;
+                }
+                if (matchCount < cLen) {
+                    inp.value = correct.substring(0, matchCount + 1);
+                }
+            }
+            inp.focus();
+        }
+
         function changeReview(step) {
+            const item = reviewQueue[currentRevIdx];
+
+            // LOGIC: Block Next if In Drill Mode (Must Solve)
+            if (step > 0 && item && item.type === 'word') {
+                if (item.inDrill && !item.solved) {
+                    // Block navigation.
+                    showDrillWarning(); // Show Custom UI
+
+                    const btn = document.getElementById('nextRev');
+                    btn.classList.add('flash-effect'); // Reuse shake/color
+                    setTimeout(() => btn.classList.remove('flash-effect'), 500);
+                    return;
+                }
+
+                // If not in Drill, but not solved (Skipping)
+                if (!item.solved && !item.revealed) {
+                    // CASE: User didn't type anything (or wrong but not checked yet?)
+                    // If user typed something but didn't check, we normally treat as Skip.
+                    // Requirement: "ko cho qua từ khác ngay mà phải hiện đáp án... ấn lần nữa mới qua"
+
+                    // Check if input has value? 
+                    const inp = document.getElementById('reviewInput');
+                    const hasInput = inp && inp.value.trim().length > 0;
+
+                    // If hasInput -> Wait, maybe they want to check? 
+                    // But if they hit "Next", they likely gave up. 
+                    // Let's just Reveal.
+
+                    item.revealed = true;
+                    item.inDrill = false; // Ensure not locked
+
+                    if (inp) {
+                        inp.value = item.data.word; // Fill Correct Answer
+                        inp.style.borderColor = '#f59e0b'; // Warn/Neutral color
+                        inp.style.background = '#fff7ed';
+                        inp.disabled = true; // Lock it
+                    }
+                    const feed = document.getElementById('reviewFeedback');
+                    if (feed) feed.innerHTML = `Đáp án: <b style="color:var(--primary); font-size:18px;">${item.data.word}</b>`;
+
+                    speak(item.data.word);
+                    return; // Stop. Next click will pass since revealed=true.
+                }
+            }
+
             currentRevIdx += step;
             if (currentRevIdx >= reviewQueue.length) {
                 closeReview();
