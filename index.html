@@ -333,12 +333,9 @@
             padding: 4px 8px;
             border-radius: 5px;
             cursor: pointer;
-            opacity: 0;
-            transition: 0.3s;
-        }
-
-        .section-title:hover .btn-delete-topic {
             opacity: 1;
+            /* Always visible */
+            transition: 0.3s;
         }
 
         .flash-effect {
@@ -846,30 +843,125 @@
                 right: 220px;
             }
 
-            /* 2. Inputs wrapped */
+            /* 2. Inputs wrapped & Compact */
+            /* 2. Inputs wrapped & SUPER Compact */
             .input-group {
                 flex-wrap: wrap;
+                gap: 4px;
             }
 
             #wordInput {
                 min-width: 100%;
-                margin-bottom: 8px;
+                margin-bottom: 4px;
+                padding: 4px 8px;
+                font-size: 13px;
+                height: 32px;
+                /* Even smaller height */
             }
 
             .btn-add,
             .btn-bulk-toggle {
                 flex: 1;
-                /* Stretch buttons */
-                padding: 12px 0;
+                padding: 0 8px;
+                height: 32px;
+                font-size: 12px;
             }
 
-            /* 3. Adjust Content Padding */
+            /* SUPER COMPACT HEADER CONTROLS */
+            .history-controls {
+                gap: 3px;
+                margin-top: 3px;
+                transform: scale(0.9);
+                /* Scale down whole control set */
+                transform-origin: left top;
+            }
+
+            .history-btn {
+                padding: 2px 6px;
+                font-size: 10px;
+                height: 24px;
+            }
+
+            #topicGroup input {
+                padding: 4px;
+                font-size: 12px;
+                height: 26px;
+            }
+
+            label[for="topicCheck"],
+            #topicCheck {
+                font-size: 11px;
+            }
+
+            /* 3. Adjust Content Padding & Card Size */
             .content {
-                padding: 10px 10px 150px 10px;
+                padding: 5px 2px 150px 2px;
+                /* Tiny padding */
             }
 
             .header {
-                padding: 15px 10px;
+                padding: 6px 6px;
+
+            }
+
+            /* COMPACT WORD CARD */
+            /* SUPER COMPACT WORD CARD */
+            .word-card {
+                padding: 6px 8px;
+                /* Extremely tight */
+                margin-bottom: 4px;
+                border-left-width: 3px;
+                border-radius: 8px;
+            }
+
+            .display-text {
+                font-size: 14px;
+                /* Tiny title */
+            }
+
+            .editable-meaning {
+                font-size: 13px;
+                line-height: 1.3;
+            }
+
+            .pos-tag,
+            .example-text {
+                font-size: 10px;
+            }
+
+            .word-header {
+                margin-bottom: 0px;
+            }
+
+            .section-title {
+                font-size: 16px;
+                margin: 10px 0 5px 0;
+                padding-left: 5px;
+            }
+
+            /* Adjust Icons in Card */
+            .star-icon {
+                font-size: 16px;
+                top: 6px;
+                right: 6px;
+            }
+
+            .delete-icon {
+                font-size: 12px;
+                top: 6px;
+                right: 26px;
+            }
+
+            .btn-speak {
+                font-size: 12px;
+                padding: 2px;
+            }
+
+            /* Seedling Icon */
+            .word-card span[title="Gieo vào Topic (Topic)"] {
+                font-size: 14px !important;
+                right: 42px !important;
+                bottom: 6px !important;
             }
 
             /* 4. Hide History/Topic controls partially or stack them */
@@ -881,7 +973,36 @@
             .tool-btn {
                 width: 50px;
                 height: 50px;
-                /* Bigger touch targets */
+            }
+
+            /* TOPIC HEADER MOBILE FIXES */
+            .section-title {
+                display: flex;
+                flex-wrap: wrap;
+                /* Allow title and buttons to stack */
+                align-items: center;
+                gap: 5px;
+            }
+
+            .section-title>div[style*="margin-left: auto"] {
+                margin-left: 0 !important;
+                /* Remove auto margin on mobile so it wraps naturally */
+                width: 100%;
+                justify-content: flex-end;
+                flex-wrap: wrap;
+                margin-top: 5px;
+            }
+
+            .btn-delete-topic {
+                padding: 4px 8px;
+                font-size: 11px;
+                white-space: nowrap;
+            }
+
+            .sort-select {
+                padding: 2px;
+                font-size: 11px !important;
+                height: 24px;
             }
         }
     </style>
@@ -1909,7 +2030,7 @@
             <div class="word-header">
                 ${index ? `<span class="word-index" style="color:#94a3b8; font-size:14px; margin-right:6px; font-weight:600; min-width:20px; display:inline-block; user-select:none;">${index}.</span>` : ''}
                 <div class="display-text" contenteditable="true" style="outline:none; transition: all 0.2s;">${w.word}</div>
-                ${w.pos ? `<span class="pos-tag">(${w.pos})</span>` : ''}
+                ${w.pos && w.pos !== 'phrase' ? `<span class="pos-tag">(${w.pos})</span>` : ''}
                 ${topicHtml}
                 ${phraseHtml}
                 <button class="btn-speak">🔊</button>
