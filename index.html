@@ -748,12 +748,176 @@
             opacity: 1;
             transform: translateX(-50%) translateY(0);
         }
+
+        /* SIDEBAR TOGGLES (CENTERED) */
+        .sidebar-left,
+        .sidebar-right {
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body.left-collapsed .sidebar-left {
+            width: 0 !important;
+            overflow: hidden;
+            border-right: none;
+        }
+
+        body.right-collapsed .sidebar-right {
+            width: 0 !important;
+            overflow: hidden;
+            border-left: none;
+        }
+
+        .toggle-side-btn {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 900;
+            background: white;
+            border: 1px solid #e2e8f0;
+            width: 24px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #94a3b8;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            font-family: Tahoma, sans-serif;
+            font-size: 20px;
+            font-weight: bold;
+            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), right 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s;
+            padding-bottom: 4px;
+        }
+
+        .toggle-side-btn:hover {
+            background: #f8fafc;
+            color: var(--primary);
+        }
+
+        #toggleLeftBtn {
+            left: 70px;
+            border-top-right-radius: 12px;
+            border-bottom-right-radius: 12px;
+            border-left: none;
+        }
+
+        body.left-collapsed #toggleLeftBtn {
+            left: 0;
+            border-left: 1px solid #e2e8f0;
+        }
+
+        #toggleRightBtn {
+            right: 155px;
+            border-top-left-radius: 12px;
+            border-bottom-left-radius: 12px;
+            border-right: none;
+        }
+
+        body.right-collapsed #toggleRightBtn {
+            right: 0;
+            border-right: 1px solid #e2e8f0;
+        }
+
+        /* MOBILE / TABLET RESPONSIVE */
+        @media (max-width: 900px) {
+
+            /* 1. Sidebars become "Drawers" (Overlay) */
+            .sidebar-left,
+            .sidebar-right {
+                position: fixed;
+                height: 100%;
+                z-index: 1001;
+                /* Above everything */
+                box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
+            }
+
+            .sidebar-left {
+                left: 0;
+            }
+
+            .sidebar-right {
+                right: 0;
+                width: 220px;
+                /* Wider for easier touch */
+            }
+
+            /* Adjust Toggle Buttons to match new widths */
+            #toggleRightBtn {
+                right: 220px;
+            }
+
+            /* 2. Inputs wrapped */
+            .input-group {
+                flex-wrap: wrap;
+            }
+
+            #wordInput {
+                min-width: 100%;
+                margin-bottom: 8px;
+            }
+
+            .btn-add,
+            .btn-bulk-toggle {
+                flex: 1;
+                /* Stretch buttons */
+                padding: 12px 0;
+            }
+
+            /* 3. Adjust Content Padding */
+            .content {
+                padding: 10px 10px 150px 10px;
+            }
+
+            .header {
+                padding: 15px 10px;
+            }
+
+            /* 4. Hide History/Topic controls partially or stack them */
+            .history-controls {
+                flex-wrap: wrap;
+            }
+
+            .nav-item,
+            .tool-btn {
+                width: 50px;
+                height: 50px;
+                /* Bigger touch targets */
+            }
+        }
     </style>
 </head>
 
 <body onclick="closeAllModals(event)">
 
+    <!-- TOGGLE BUTTONS -->
+    <button id="toggleLeftBtn" class="toggle-side-btn" onclick="toggleSide('left')" title="Ẩn/Hiện Menu trái">‹</button>
+    <button id="toggleRightBtn" class="toggle-side-btn" onclick="toggleSide('right')"
+        title="Ẩn/Hiện Menu phải">›</button>
+
     <div id="calBackdrop"></div>
+
+    <!-- TOPIC SELECTOR MODAL -->
+    <div id="topicSelectorOverlay"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.6); z-index:4000; align-items:center; justify-content:center; backdrop-filter:blur(5px);">
+        <div class="modal-content"
+            style="background:white; padding:25px; border-radius:24px; width:350px; max-width:90%; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); border:1px solid #e2e8f0; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+            <h3 style="margin:0 0 15px 0; color:var(--primary); text-align:center;">📂 Chọn Topic</h3>
+            <p id="topicSelectorWord"
+                style="text-align:center; color:#64748b; font-weight:bold; margin-bottom:20px; font-size:16px;"></p>
+
+            <div id="topicSelectorList"
+                style="max-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; margin-bottom:15px; padding-right:5px;">
+            </div>
+
+            <div style="border-top:1px solid #f1f5f9; padding-top:15px; margin-top:10px;">
+                <input type="text" id="newTopicInput" placeholder="Hoặc tạo Topic mới..."
+                    style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:10px; margin-bottom:10px; outline:none;"
+                    onkeypress="if(event.key==='Enter') createNewTopicFromSelector()">
+                <button onclick="closeTopicSelector()"
+                    style="width:100%; padding:10px; border-radius:10px; border:none; background:#f1f5f9; color:#64748b; font-weight:bold; cursor:pointer;">Đóng</button>
+            </div>
+        </div>
+    </div>
 
     <div id="bulkOverlay" onclick="closeBulk()">
         <div class="bulk-card" onclick="event.stopPropagation()">
@@ -1086,13 +1250,18 @@
         // --- CORE ENGINE ---
 
         function init() {
+            // MOBILE CHECK: Auto-collapse sidebars on small screens
+            if (window.innerWidth < 900) {
+                document.body.classList.add('left-collapsed');
+                document.body.classList.add('right-collapsed');
+            }
+
             pushHistory();
             migrateData();
+            updateToggleIcons(); // Sync icons
             renderAll();
             renderAll();
             checkYesterdayReview();
-
-
         }
 
         let saveTimer;
@@ -1519,6 +1688,41 @@
             return sorted;
         }
 
+        function toggleSide(side) {
+            document.body.classList.toggle(`${side}-collapsed`);
+            updateToggleIcons();
+        }
+
+        function updateToggleIcons() {
+            const isLeft = !document.body.classList.contains('left-collapsed');
+            document.getElementById('toggleLeftBtn').innerText = isLeft ? "‹" : "›";
+
+            const isRight = !document.body.classList.contains('right-collapsed');
+            document.getElementById('toggleRightBtn').innerText = isRight ? "›" : "‹";
+        }
+
+        function askAddWordToTopic(topicName) {
+            const word = prompt(`Nhập TỪ ĐÃ CÓ trong từ điển để thêm vào topic "${topicName}":`);
+            if (!word) return;
+
+            const cleanWord = word.trim().toLowerCase();
+            const w = db.words.find(x => x.word.toLowerCase() === cleanWord);
+
+            if (w) {
+                if (w.topic === topicName) {
+                    alert("Từ này đã nằm trong topic này rồi!");
+                    return;
+                }
+                if (confirm(`Chuyển từ "${w.word}" từ topic "${w.topic || '(Chưa có)'}" sang "${topicName}"?`)) {
+                    w.topic = topicName;
+                    pushHistory(); save(); renderAll();
+                    setTimeout(() => scrollToWord(w), 300);
+                }
+            } else {
+                alert(`Không tìm thấy từ "${word}" trong từ điển của bạn!`);
+            }
+        }
+
         function createSectionGroup(titleText, sectionId, sortKey, wordList, sortType, isTopic = false) {
             const group = document.createElement('div');
             group.className = 'section-group';
@@ -1578,6 +1782,7 @@
                 rightGroup.style.marginLeft = "auto";
 
                 rightGroup.appendChild(createSortSelect(sortKey, sortType));
+
                 rightGroup.appendChild(revBtn);
                 rightGroup.appendChild(delBtn);
 
@@ -1719,6 +1924,28 @@
             card.querySelector('.delete-icon').onclick = () => askDeleteWord(w.id);
             card.querySelector('.btn-speak').onclick = (e) => { e.stopPropagation(); speak(w.word); };
             card.querySelector('.star-icon').onclick = () => toggleStar(w.id);
+
+            // Add Topic Folder Button (Cute Seedling 🌱)
+            // SHOW ONLY IF NO TOPIC ASSIGNED YET
+            if (!w.topic) {
+                const folderBtn = document.createElement('span');
+                folderBtn.innerText = '🌱';
+                folderBtn.title = "Gieo vào Topic (Topic)";
+                folderBtn.style.cssText = "position:absolute; right:45px; bottom:12px; cursor:pointer; font-size:18px; color:#94a3b8; transition:0.2s; user-select:none;";
+                folderBtn.onclick = (e) => { e.stopPropagation(); openTopicSelector(w.id); };
+
+                // Cute hover effect: Grow and become green
+                folderBtn.onmouseover = () => {
+                    folderBtn.style.color = "#16a34a"; // Green
+                    folderBtn.style.transform = "scale(1.2) rotate(10deg)";
+                };
+                folderBtn.onmouseout = () => {
+                    folderBtn.style.color = "#94a3b8";
+                    folderBtn.style.transform = "scale(1) rotate(0deg)";
+                };
+
+                card.appendChild(folderBtn);
+            }
 
             const meaningSpan = card.querySelector('.editable-meaning');
             meaningSpan.onblur = () => updateMeaning(w.id, meaningSpan.innerText);
@@ -2138,8 +2365,82 @@
             if (e.target.id === 'bulkOverlay') closeBulk();
             if (e.target.id === 'docOverlay') closeDocImport();
             if (e.target.id === 'editOverlay') closeEditWord();
+            if (e.target.id === 'topicSelectorOverlay') closeTopicSelector();
             if (e.target.id === 'confirmOverlay') handleConfirm(false);
             if (e.target.id === 'celebrateOverlay') closeCelebration();
+        }
+
+        // TOPIC SELECTOR LOGIC
+        let currentTopicWordId = null;
+
+        function openTopicSelector(id) {
+            currentTopicWordId = id;
+            const w = db.words.find(x => x.id === id);
+            if (!w) return;
+
+            document.getElementById('topicSelectorWord').innerText = `"${w.word}"`;
+            const list = document.getElementById('topicSelectorList');
+            list.innerHTML = "";
+
+            // Get unique topics
+            const topics = [...new Set(db.words.filter(item => item.topic).map(item => item.topic))].sort();
+
+            // Add "No Topic" option
+            const noTopicBtn = document.createElement("button");
+            noTopicBtn.className = "c-btn"; // reuse class
+            noTopicBtn.style.cssText = "padding:10px; text-align:left; background:#f1f5f9; color:#64748b; margin-bottom:4px;";
+            noTopicBtn.innerText = "🚫 (Bỏ Topic)";
+            noTopicBtn.onclick = () => selectTopic(null);
+            list.appendChild(noTopicBtn);
+
+            topics.forEach(t => {
+                const btn = document.createElement("button");
+                btn.className = "c-btn";
+                btn.style.cssText = "padding:10px; text-align:left; background:#eff6ff; color:#1e3a8a; border:1px solid #dbeafe;";
+                btn.innerText = `# ${t}`;
+
+                // Highlight current
+                if (w.topic === t) {
+                    btn.style.background = "#2563eb";
+                    btn.style.color = "white";
+                    btn.innerText += " (Hiện tại)";
+                }
+
+                btn.onclick = () => selectTopic(t);
+                list.appendChild(btn);
+            });
+
+            document.getElementById('topicSelectorOverlay').style.display = 'flex';
+        }
+
+        function closeTopicSelector() {
+            document.getElementById('topicSelectorOverlay').style.display = 'none';
+            currentTopicWordId = null;
+        }
+
+        function selectTopic(topicName) {
+            if (!currentTopicWordId) return;
+            const w = db.words.find(x => x.id === currentTopicWordId);
+            if (w) {
+                if (w.topic !== topicName) {
+                    w.topic = topicName;
+                    pushHistory(); save(); renderAll();
+
+                    // Optional: Scroll to new location if it moved sections
+                    // But maybe simply staying put or refreshing is fine.
+                    // If we are in A-Z view, it stays. If in Idea view, it might move.
+                    // Let's just flash it.
+                    setTimeout(() => scrollToWord(w), 100);
+                }
+            }
+            closeTopicSelector();
+        }
+
+        function createNewTopicFromSelector() {
+            const val = document.getElementById('newTopicInput').value.trim();
+            if (val) {
+                selectTopic(val);
+            }
         }
 
         function openBulk() { document.getElementById('bulkOverlay').style.display = 'flex'; }
