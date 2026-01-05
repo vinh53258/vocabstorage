@@ -1004,6 +1004,18 @@
                 font-size: 11px !important;
                 height: 24px;
             }
+
+            /* CALENDAR ON MOBILE CENTERED */
+            #calContainer {
+                position: fixed !important;
+                top: 50% !important;
+                left: 50% !important;
+                transform: translate(-50%, -50%) !important;
+                width: 90% !important;
+                max-width: 350px !important;
+                z-index: 6000 !important;
+                /* Above everything including drawer */
+            }
         }
     </style>
 </head>
@@ -1973,9 +1985,12 @@
                 fragment.appendChild(createSectionGroup("Useful Phrases", "sec-phrase", "phrase", phrases, "full"));
             }
 
-            // 4. TOPICS
+            // 4. TOPICS (Exclude specific topics if they overlap, though usually Users make their own)
+            // Fix duplicate 'Phrase' section if user accidentally named a topic "Phrase" or similar
+            // Actually, simply ignoring case-insensitive 'phrase' topic might be safer if we have a dedicated section.
             const topics = [...new Set(db.words.filter(w => w.topic).map(w => w.topic))].sort((a, b) => a.localeCompare(b));
             topics.forEach(t => {
+                if (t.toLowerCase() === 'phrase' || t.toLowerCase() === 'phrases') return; // Skip if conflicts with dedicated section
                 let topicWords = db.words.filter(w => w.topic === t);
                 fragment.appendChild(createSectionGroup(`# ${t}`, `topic-${t}`, `topic-${t}`, topicWords, 'full', true));
             });
