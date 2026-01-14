@@ -310,19 +310,30 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
             position: relative;
             transition: 0.3s;
-            scroll-margin-top: 210px;
+            scroll-margin-top: 240px;
+            /* Increased to clear sticky headers */
         }
 
         .section-title {
             font-size: 28px;
             font-weight: 800;
-            margin: 40px 0 20px 0;
+            margin: 0;
+            padding: 20px 0;
             color: #334155;
             border-bottom: 3px solid #f1f5f9;
-            scroll-margin-top: 210px;
+            scroll-margin-top: 240px;
+            /* Increased to clear sticky headers */
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: sticky;
+            /* Desktop Sticky Position - ADJUSTED AGAIN */
+            top: 145px;
+            /* 115px was too tight, 170px had gap. Trying 145px. */
+            background: rgba(248, 250, 252, 0.95);
+            backdrop-filter: blur(5px);
+            z-index: 4;
+            box-shadow: 0 4px 6px -4px rgba(0, 0, 0, 0.1);
         }
 
         .btn-delete-topic {
@@ -804,7 +815,8 @@
         }
 
         #toggleRightBtn {
-            right: 155px;
+            right: 175px;
+            /* Moved left to avoid scrollbar overlap (155px width + 20px gap) */
             border-top-left-radius: 12px;
             border-bottom-left-radius: 12px;
             border-right: none;
@@ -937,6 +949,10 @@
                 font-size: 16px;
                 margin: 10px 0 5px 0;
                 padding-left: 5px;
+                top: 105px;
+                /* Mobile: Adjusted to 105px to prevent cutoff */
+                padding: 10px 5px;
+                /* Reduce padding on mobile */
             }
 
             /* Adjust Icons in Card */
@@ -1109,6 +1125,27 @@
                 <button class="c-btn" id="confirmOk" style="background: var(--primary); color: white;"
                     onclick="handleConfirm(true)">Xác nhận</button>
             </div>
+        </div>
+    </div>
+
+    <!-- OPTION OVERLAY (For Move vs Copy) -->
+    <div id="optionOverlay"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.5); z-index:2000; backdrop-filter:blur(3px); align-items:center; justify-content:center;"
+        onclick="closeOptionModal()">
+        <div id="optionBox" onclick="event.stopPropagation()"
+            style="background:white; padding:35px 30px; border-radius:30px; width:400px; max-width:90%; text-align:center; box-shadow:0 25px 50px -12px rgba(0,0,0,0.3);position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+            <div id="optionMsg" style="font-weight:600; font-size:17px; margin-bottom:25px; color:#334155;"></div>
+            <div style="display:flex; gap:8px; flex-wrap: wrap; justify-content: center;">
+                <button class="c-btn" onclick="handleOption(1)" id="optBtn1"
+                    style="background:#e0f2fe; color:#0284c7; min-width: 100px;">Option 1</button>
+                <button class="c-btn" onclick="handleOption(2)" id="optBtn2"
+                    style="background:#f0fdf4; color:#16a34a; min-width: 100px;">Option 2</button>
+                <button class="c-btn" onclick="handleOption(3)" id="optBtn3"
+                    style="display:none; background:#f5f3ff; color:#7c3aed; min-width: 100px;">Option 3</button>
+            </div>
+            <button onclick="closeOptionModal()"
+                style="margin-top:20px; background:none; border:none; color:#94a3b8; font-size:13px; cursor:pointer; text-decoration:underline;">Hủy
+                bỏ</button>
         </div>
     </div>
 
@@ -1771,7 +1808,7 @@
         }
 
         function createSortSelect(key, type) {
-            const current = window.sectionSorts[key]; // undefined implies default
+            const current = window.sectionSorts[key] || 'time_old'; // Default to time_old
             const select = document.createElement("select");
             select.className = "sort-select";
             select.style.cssText = "margin-left:auto; margin-right:8px; padding:4px; border-radius:6px; border:1px solid #cbd5e1; font-size:12px; cursor:pointer; background:white; color:#475569;";
@@ -1785,13 +1822,13 @@
             if (type === 'full') {
                 select.innerHTML = `
                     <option value="az" ${current === 'az' ? 'selected' : ''}>A-Z</option>
-                    <option value="time_old" ${current === 'time_old' || !current ? 'selected' : ''}>Cũ nhất - Mới nhất</option>
+                    <option value="time_old" ${current === 'time_old' ? 'selected' : ''}>Cũ nhất - Mới nhất</option>
                     <option value="time_new" ${current === 'time_new' ? 'selected' : ''}>Mới nhất - Cũ nhất</option>
                  `;
             } else {
                 // time only (for A-Z letter content)
                 select.innerHTML = `
-                    <option value="time_old" ${current === 'time_old' || !current ? 'selected' : ''}>Cũ nhất - Mới nhất</option>
+                    <option value="time_old" ${current === 'time_old' ? 'selected' : ''}>Cũ nhất - Mới nhất</option>
                     <option value="time_new" ${current === 'time_new' ? 'selected' : ''}>Mới nhất - Cũ nhất</option>
                  `;
             }
@@ -1900,21 +1937,25 @@
                 // REVIEW TOPIC BUTTON
                 const revBtn = document.createElement("button");
                 revBtn.className = "btn-delete-topic"; // Reuse style for now, maybe change color
-                revBtn.innerText = "📖 Ôn Topic này";
+                revBtn.innerText = "📖 Ôn Topic";
                 revBtn.style.background = "#dbeafe";
                 revBtn.style.color = "#1e40af";
                 revBtn.style.border = "1px solid #bfdbfe";
                 revBtn.style.marginLeft = "8px";
                 revBtn.onclick = (e) => { e.stopPropagation(); reviewTopic(tName); };
 
+
+
                 // Group Buttons
                 const rightGroup = document.createElement("div");
                 rightGroup.style.display = "flex";
                 rightGroup.style.alignItems = "center";
-                rightGroup.style.gap = "8px"; // Reduced gap
+                rightGroup.style.gap = "6px"; // Reduced gap
                 rightGroup.style.marginLeft = "auto";
+                rightGroup.style.flexWrap = "wrap"; // Allow weak wrap on mobile
 
                 rightGroup.appendChild(createSortSelect(sortKey, sortType));
+
 
                 rightGroup.appendChild(revBtn);
                 rightGroup.appendChild(delBtn);
@@ -1980,7 +2021,9 @@
             }
 
             // 3. PHRASES
-            const phrases = db.words.filter(w => w.isPhrase);
+            // User Request: "các từ đã có ở topic thì ko thêm vào muc phrases nữa"
+            // Filter: Must be phrase AND NOT have a topic.
+            const phrases = db.words.filter(w => w.isPhrase && !w.topic);
             if (phrases.length) {
                 fragment.appendChild(createSectionGroup("Useful Phrases", "sec-phrase", "phrase", phrases, "full"));
             }
@@ -2024,7 +2067,14 @@
 
 
             // Topic click handler
-            const topicHtml = w.topic
+            // Logic: Hide topic badge if logic says so (e.g. inside Topic section)
+            // REQUEST: "chỉ hiện topic khi từ/cụm từ đó ở mục phrases/A-Z/challenging words"
+            // Suffix maps to context: 'topic' -> inside topic list. 'az' -> A-Z. 'phrase' -> Phrases. 'star' -> Challenging.
+            // So we show topic badge ONLY if suffix is 'az', 'phrase', or 'star'.
+            // Actually 'main' is often synonymous with 'az' here (or 'time').
+            // Basically: Hide if suffix === 'topic'.
+            const shouldShowTopic = w.topic && suffix !== 'topic';
+            const topicHtml = shouldShowTopic
                 ? `<span class="topic-badge" onclick="scrollToId('word-${w.id}-topic', true); event.stopPropagation();" title="Đến mục Topic này"># ${w.topic}</span>`
                 : '';
 
@@ -2044,15 +2094,15 @@
             <span class="delete-icon" title="Xóa từ">✕</span>
             <div class="word-header">
                 ${index ? `<span class="word-index" style="color:#94a3b8; font-size:14px; margin-right:6px; font-weight:600; min-width:20px; display:inline-block; user-select:none;">${index}.</span>` : ''}
-                <div class="display-text" contenteditable="true" style="outline:none; transition: all 0.2s;">${w.word}</div>
-                ${w.pos && w.pos !== 'phrase' ? `<span class="pos-tag">(${w.pos})</span>` : ''}
+                <div class="display-text" contenteditable="true" onpaste="handlePastePlain(event)" style="outline:none; transition: all 0.2s;">${w.word}</div>
+                ${(w.pos && w.pos.toLowerCase() !== 'phrase') ? `<span class="pos-tag">(${w.pos})</span>` : ''}
                 ${topicHtml}
                 ${phraseHtml}
                 <button class="btn-speak">🔊</button>
             </div>
             <p>
                 <span style="color:var(--success); font-weight:bold">→ </span>
-                <span class="editable-meaning" contenteditable="true">${w.meaning}</span>
+                <span class="editable-meaning" contenteditable="true" onpaste="handlePastePlain(event)">${w.meaning}</span>
             </p>
             ${w.example ? `<div class="example-text">${w.example}</div>` : ''}
             <span class="star-icon ${w.star ? 'active' : ''}">★</span>
@@ -2062,26 +2112,24 @@
             card.querySelector('.star-icon').onclick = () => toggleStar(w.id);
 
             // Add Topic Folder Button (Cute Seedling 🌱)
-            // SHOW ONLY IF NO TOPIC ASSIGNED YET
-            if (!w.topic) {
-                const folderBtn = document.createElement('span');
-                folderBtn.innerText = '🌱';
-                folderBtn.title = "Gieo vào Topic (Topic)";
-                folderBtn.style.cssText = "position:absolute; right:45px; bottom:12px; cursor:pointer; font-size:18px; color:#94a3b8; transition:0.2s; user-select:none;";
-                folderBtn.onclick = (e) => { e.stopPropagation(); openTopicSelector(w.id); };
+            // ALWAYS SHOW to allow moving/copying between topics
+            const folderBtn = document.createElement('span');
+            folderBtn.innerText = '🌱';
+            folderBtn.title = "Gieo vào Topic (Topic)";
+            folderBtn.style.cssText = "position:absolute; right:45px; bottom:12px; cursor:pointer; font-size:18px; color:#94a3b8; transition:0.2s; user-select:none;";
+            folderBtn.onclick = (e) => { e.stopPropagation(); openTopicSelector(w.id); };
 
-                // Cute hover effect: Grow and become green
-                folderBtn.onmouseover = () => {
-                    folderBtn.style.color = "#16a34a"; // Green
-                    folderBtn.style.transform = "scale(1.2) rotate(10deg)";
-                };
-                folderBtn.onmouseout = () => {
-                    folderBtn.style.color = "#94a3b8";
-                    folderBtn.style.transform = "scale(1) rotate(0deg)";
-                };
+            // Cute hover effect: Grow and become green
+            folderBtn.onmouseover = () => {
+                folderBtn.style.color = "#16a34a"; // Green
+                folderBtn.style.transform = "scale(1.2) rotate(10deg)";
+            };
+            folderBtn.onmouseout = () => {
+                folderBtn.style.color = "#94a3b8";
+                folderBtn.style.transform = "scale(1) rotate(0deg)";
+            };
 
-                card.appendChild(folderBtn);
-            }
+            card.appendChild(folderBtn);
 
             const meaningSpan = card.querySelector('.editable-meaning');
             meaningSpan.onblur = () => updateMeaning(w.id, meaningSpan.innerText);
@@ -2130,7 +2178,10 @@
             }
         }
 
-        // Removed askEditTopic (Direct Edit Now)
+        // REMOVED old askDeleteTopic here, we use the one below or inline
+        // Actually askDeleteTopic is defined below line 2154.
+
+
 
         function askDeleteTopic(topicName) {
             showConfirm(`Xóa toàn bộ từ trong topic "${topicName}"?`, () => {
@@ -2154,23 +2205,73 @@
         async function handleAdd() {
             const wordInp = document.getElementById('wordInput');
             const topicInp = document.getElementById('topicInput');
+            const topicCheck = document.getElementById('topicCheck');
             const status = document.getElementById('status');
             const val = wordInp.value.trim();
             if (!val) return;
 
+            // 1. DUPLICATE CHECK
+            // Check if exact word exists
             const existing = db.words.find(w => w.word.toLowerCase() === val.toLowerCase());
-            if (existing) {
-                status.style.color = "var(--danger)";
-                status.innerText = "Tôi yêu cầu em học kĩ từ này!";
 
-                // AUTO SCROLL TO EXISTING (Pass Object)
-                scrollToWord(existing);
-                return;
+            // NEW FEATURE: if existing in A-Z (no topic) and we are assigning a Topic -> Ask Move vs Copy
+            const targetTopic = topicCheck.checked ? topicInp.value.trim() : null;
+
+            if (existing) {
+                if (targetTopic && !existing.topic) {
+                    // Logic: Word is in A-Z (no topic). User wants to add same word with a Topic.
+                    // Ask: "Di chuyển" (Move existing to topic) or "Bản sao" (Add new entry in topic, keep old in A-Z)
+
+                    // NEW: Check if word has >= 2 words to offer "Move to Phrases" option
+                    const wordCount = existing.word.trim().split(/\s+/).length;
+                    const canBePhrase = wordCount >= 2 && !existing.isPhrase;
+                    const locationText = getWordLocationString(existing);
+
+                    showOptionDialog(
+                        `Từ "${existing.word}" đang ở ${locationText}.`,
+                        "Chuyển vào Topic",
+                        () => {
+                            // MOVE
+                            existing.topic = targetTopic;
+                            pushHistory(); save(); renderAll();
+                            scrollToWord(existing);
+                            status.innerText = `Đã chuyển vào topic ${targetTopic}`;
+                            wordInp.value = "";
+                        },
+                        "Tạo bản sao",
+                        async () => {
+                            // COPY (Proceed to Add New)
+                            await executeAdd(val, targetTopic, status, wordInp);
+                        },
+                        canBePhrase ? "Chuyển sang Phrases" : null,
+                        canBePhrase ? () => {
+                            // MOVE TO PHRASES
+                            existing.isPhrase = true;
+                            existing.topic = null; // Clear topic if moving to phrase section
+                            existing.pos = "phrase";
+                            pushHistory(); save(); renderAll();
+                            scrollToFirst('sec-phrase');
+                            status.innerText = `Đã chuyển sang mục Phrases`;
+                            wordInp.value = "";
+                        } : null
+                    );
+                    return;
+                } else {
+                    // Normal Duplicate Block (or if word already has topic)
+                    status.style.color = "var(--danger)";
+                    status.innerText = "Từ này đã có rồi!";
+                    scrollToWord(existing);
+                    return;
+                }
             }
 
-            status.style.color = "var(--primary)";
-            status.innerText = "Searching...";
+            // If not existing, or if we decided to Copy, execute Add
+            await executeAdd(val, targetTopic, status, wordInp);
+        }
 
+        async function executeAdd(val, topicName, statusEl, inputEl) {
+            statusEl.style.color = "var(--primary)";
+            statusEl.innerText = "Searching...";
             try {
                 // PARALLEL EXECUTION: Faster!
                 const [extra, trans] = await Promise.all([
@@ -2180,37 +2281,50 @@
 
                 const meaning = trans.text || "No meaning found";
 
-                // Optional: Check if input was actually VN
-                if (trans.lang === 'vi') {
-                    status.style.color = "var(--danger)";
-                    status.innerText = "Detected Vietnamese input. Skipped.";
-                    setTimeout(() => status.innerText = "", 2000);
-                    return;
+                // PHRASE OPTIMIZATION V2:
+                // User requirement: "ko phải là 2 từ nữa mà phải gồm cả các giới từ..."
+                // Prepositions: in, on, at, by, for, with, about, from, to, under, over, after, before...
+                const prepositions = ["in", "on", "at", "by", "for", "with", "about", "from", "to", "under", "over", "after", "before", "up", "down", "out", "off", "into", "onto"]; // Extended slightly for common phrasal verbs
+                const lowerVal = val.toLowerCase();
+                const words = lowerVal.split(/[\s-]+/);
+                const hasPrep = words.some(w => prepositions.includes(w));
+                const dictPos = extra.pos ? extra.pos.toLowerCase() : "";
+
+                let isPhrase = false;
+
+                if (dictPos === "phrase") {
+                    isPhrase = true;
+                } else if (words.length >= 2) {
+                    // It has multiple words.
+                    // Only mark as Phrase if it contains a preposition (Phrasal Verb/Idiom)
+                    // Otherwise treat as Compound Word (A-Z/Topic)
+                    isPhrase = hasPrep;
                 }
 
                 const entry = {
                     id: Date.now(),
                     word: capitalizeFirstOnly(val),
                     meaning: meaning,
-                    pos: extra.pos || (val.includes(" ") ? "phrase" : "noun"),
+                    pos: extra.pos || (isPhrase ? "phrase" : (words.length >= 2 ? "compound" : "noun")),
                     example: extra.example || "",
                     date: new Date().toISOString().split('T')[0],
                     star: false,
-                    topic: document.getElementById('topicCheck').checked ? topicInp.value.trim() : null,
-                    isPhrase: val.split(/\s+/).length >= 2
+                    topic: topicName || null,
+                    isPhrase: isPhrase
                 };
                 db.words.push(entry);
                 pushHistory(); save(); renderAll();
-                status.innerText = "Added successfully!";
-                wordInp.value = "";
+
+                statusEl.innerText = "Added successfully!";
+                inputEl.value = "";
 
                 // AUTO SCROLL TO NEW WORD (Pass Object)
                 setTimeout(() => scrollToWord(entry), 300);
+                setTimeout(() => statusEl.innerText = "", 2500);
 
-                setTimeout(() => status.innerText = "", 2500);
             } catch (e) {
                 console.error(e);
-                status.innerText = "Connection error!";
+                statusEl.innerText = "Connection error!";
             }
         }
 
@@ -2284,7 +2398,6 @@
         function scrollToId(id, flash = false) {
             const el = document.getElementById(id);
             if (!el) return;
-            // Use scrollToWord logic
             safeScrollTo(el, 'center');
             if (flash) flashElement(el);
         }
@@ -2315,11 +2428,15 @@
 
             if (el) {
                 safeScrollTo(el, 'center');
-                flashElement(el);
+                setTimeout(() => flashElement(el), 100); // Slight delay for smoothness
+            } else {
+                console.warn("Could not find element for word:", wordObj.word);
             }
         }
 
         function flashElement(el) {
+            if (!el) return;
+            el.scrollIntoView({ block: 'center', behavior: 'smooth' }); // Backup native scroll
             el.classList.add('flash-effect');
             el.style.transition = 'background 0.5s';
             const oldBg = el.style.background;
@@ -2327,10 +2444,8 @@
             setTimeout(() => {
                 el.classList.remove('flash-effect');
                 el.style.background = oldBg || 'white';
-            }, 1000);
+            }, 1500); // Longer flash
         }
-
-
 
         // Helper for offset scrolling
         function safeScrollTo(element, block = 'start') {
@@ -2338,69 +2453,58 @@
             if (!container || !element) return;
 
             const header = document.querySelector('.header');
-            const headerHeight = header ? header.offsetHeight : 0;
-            const buffer = 80;
+            const headerHeight = header ? header.offsetHeight : 60; // Default estimate
 
             const elRect = element.getBoundingClientRect();
             const containerRect = container.getBoundingClientRect();
 
             // Calculate relative position within the scrollable content
-            // scrollTop + (element's visual top - container's visual top) - header protection
-            let target = container.scrollTop + (elRect.top - containerRect.top);
+            let targetOffset = 0;
 
             if (block === 'start') {
-                // FIXED: Scroll exactly to top with a small visual padding (20px) below header
-                // We want the Element Top to match Header Bottom + 20px
-                target = target - headerHeight - 20;
+                // FIXED: Scroll exactly to top with visual padding
+                // element Top relative to Container Top
+                const relativeTop = elRect.top - containerRect.top;
+                targetOffset = container.scrollTop + relativeTop - headerHeight - 10;
             } else if (block === 'center') {
+                // Center logic:
+                // element Top relative to Container Top
+                const relativeTop = elRect.top - containerRect.top;
                 const viewHeight = container.clientHeight;
-                target = target - (viewHeight / 2) + (element.clientHeight / 2);
+                // Center of view = viewHeight / 2
+                // Center of element = element.clientHeight / 2
+                targetOffset = container.scrollTop + relativeTop - (viewHeight / 2) + (element.clientHeight / 2);
             }
 
             // Ensure we don't scroll past min/max
-            target = Math.max(0, target);
+            targetOffset = Math.max(0, targetOffset);
 
-            container.scrollTo({ top: target, behavior: 'smooth' });
+            container.scrollTo({ top: targetOffset, behavior: 'smooth' });
         }
 
         function scrollToFirst(id) {
             const destEl = document.getElementById(id);
             if (!destEl) return;
 
-            // Scroll to the Section Header
+            // Scroll to Section Header ("Make screen display topic name")
             safeScrollTo(destEl, 'start');
 
-            // DOUBLE CHECK SCROLL (Fix for "First Time" issue)
-            // Sometimes layout shifts after first render. We check position after 300ms and correct if needed.
+            // Flash FIRST WORD ("and first word")
             setTimeout(() => {
-                safeScrollTo(destEl, 'start');
-            }, 300);
-
-            // USER REQ: Restore Flash Effect on First Card (1s) but prevent "stuck" yellow if clicked rapidly
-            let body = destEl.nextElementSibling;
-            if (body && body.classList.contains('section-body')) {
-                const firstCard = body.firstElementChild;
-                if (firstCard && firstCard.classList.contains('word-card')) {
-                    // Reset first to ensure restart
-                    firstCard.classList.remove('flash-effect');
-                    firstCard.style.background = '';
-
-                    // Force reflow
-                    void firstCard.offsetWidth;
-
-                    // Apply Flash
-                    firstCard.classList.add('flash-effect');
-                    firstCard.style.transition = 'background 0.5s';
-                    const originalBg = firstCard.style.background; // usually empty or white
-                    firstCard.style.background = '#fef08a';
-
-                    // Auto Remove
-                    setTimeout(() => {
-                        firstCard.classList.remove('flash-effect');
-                        firstCard.style.background = originalBg;
-                    }, 1000);
+                // Find first card in this section
+                // Try nextSibling first (often the body)
+                let body = destEl.nextElementSibling;
+                while (body && !body.classList.contains('section-body')) {
+                    body = body.nextElementSibling;
                 }
-            }
+
+                if (body && body.classList.contains('section-body')) {
+                    const firstCard = body.querySelector('.word-card');
+                    if (firstCard) {
+                        flashElement(firstCard);
+                    }
+                }
+            }, 400); // increased delay to allow scroll to settle
         }
 
         function showCelebration() {
@@ -2484,12 +2588,59 @@
             confirmCallback = null;
         }
 
+        // --- OPTION DIALOG LOGIC ---
+        let optionCallback1 = null;
+        let optionCallback2 = null;
+        let optionCallback3 = null;
+
+        function showOptionDialog(msg, btn1Text, cb1, btn2Text, cb2, btn3Text = null, cb3 = null) {
+            document.getElementById('optionMsg').innerText = msg;
+            const b1 = document.getElementById('optBtn1');
+            const b2 = document.getElementById('optBtn2');
+            const b3 = document.getElementById('optBtn3'); // Dynamic button
+
+            b1.innerText = btn1Text;
+            b2.innerText = btn2Text;
+
+            // Handle 3rd button
+            if (b3) { // Verify element exists
+                if (btn3Text) {
+                    b3.style.display = 'block';
+                    b3.innerText = btn3Text;
+                } else {
+                    b3.style.display = 'none';
+                }
+            }
+
+            optionCallback1 = cb1;
+            optionCallback2 = cb2;
+            optionCallback3 = cb3;
+
+            document.getElementById('optionOverlay').style.display = 'flex';
+        }
+
+        function handleOption(num) {
+            document.getElementById('optionOverlay').style.display = 'none';
+            if (num === 1 && optionCallback1) optionCallback1();
+            if (num === 2 && optionCallback2) optionCallback2();
+            if (num === 3 && optionCallback3) optionCallback3();
+
+            optionCallback1 = null;
+            optionCallback2 = null;
+            optionCallback3 = null;
+        }
+
+        function closeOptionModal() {
+            document.getElementById('optionOverlay').style.display = 'none';
+        }
+
         // --- CẢI TIẾN: Đóng tất cả thông báo khi click ra ngoài ---
         function closeAllModals(e) {
             // Exceptions: Do not close if clicking inside modals or active areas
             if (e.target.closest('.bulk-card') ||
                 e.target.closest('.modal-content') ||
                 e.target.closest('#confirmBox') ||
+                e.target.closest('#optionBox') ||
                 e.target.closest('.celeb-card') ||
                 e.target.closest('.review-card')) return;
 
@@ -2503,7 +2654,31 @@
             if (e.target.id === 'editOverlay') closeEditWord();
             if (e.target.id === 'topicSelectorOverlay') closeTopicSelector();
             if (e.target.id === 'confirmOverlay') handleConfirm(false);
+            if (e.target.id === 'optionOverlay') closeOptionModal();
             if (e.target.id === 'celebrateOverlay') closeCelebration();
+
+            // Mobile Sidebar Auto-Close
+            // "chức năng màn hình nhỏ... ấn bất kì vị trí nào... tự động đóng"
+            // We assume sidebars use '.active' to show on mobile.
+            if (window.innerWidth < 1000) {
+                const left = document.querySelector('.sidebar-left');
+                const right = document.querySelector('.sidebar-right');
+
+                // If click is NOT inside left sidebar, close left
+                if (left && left.classList.contains('active') && !e.target.closest('.sidebar-left')) {
+                    left.classList.remove('active');
+                }
+                // If click is NOT inside right sidebar, close right
+                if (right && right.classList.contains('active') && !e.target.closest('.sidebar-right')) {
+                    right.classList.remove('active');
+                }
+            }
+        }
+
+        function handlePastePlain(e) {
+            e.preventDefault();
+            const text = (e.clipboardData || window.clipboardData).getData('text');
+            document.execCommand('insertText', false, text);
         }
 
         // TOPIC SELECTOR LOGIC
@@ -2518,16 +2693,32 @@
             const list = document.getElementById('topicSelectorList');
             list.innerHTML = "";
 
-            // Get unique topics
-            const topics = [...new Set(db.words.filter(item => item.topic).map(item => item.topic))].sort();
+            // User Request: "di chuyển từ đến mục phrase luôn nằm ở trên cùng"
+            const phraseBtn = document.createElement("button");
+            phraseBtn.className = "c-btn";
+            phraseBtn.style.cssText = "padding:12px; text-align:left; background:#f0fdf4; color:#16a34a; margin-bottom:8px; font-weight:600; border:1px solid #bbf7d0;";
+            phraseBtn.innerHTML = "📝 Chuyển sang mục Phrases";
+            phraseBtn.onclick = () => {
+                askMoveToPhrases(w);
+            };
+            list.appendChild(phraseBtn);
 
             // Add "No Topic" option
             const noTopicBtn = document.createElement("button");
             noTopicBtn.className = "c-btn"; // reuse class
             noTopicBtn.style.cssText = "padding:10px; text-align:left; background:#f1f5f9; color:#64748b; margin-bottom:4px;";
             noTopicBtn.innerText = "🚫 (Bỏ Topic)";
-            noTopicBtn.onclick = () => selectTopic(null);
+
+            // Fix: update logic to just clear topic
+            noTopicBtn.onclick = () => {
+                w.topic = null;
+                pushHistory(); save(); renderAll();
+                closeTopicSelector();
+            };
             list.appendChild(noTopicBtn);
+
+            // Get unique topics (RESTORED)
+            const topics = [...new Set(db.words.filter(item => item.topic).map(item => item.topic))].sort();
 
             topics.forEach(t => {
                 const btn = document.createElement("button");
@@ -2549,6 +2740,14 @@
             document.getElementById('topicSelectorOverlay').style.display = 'flex';
         }
 
+        function getWordLocationString(w) {
+            if (w.topic) return `Topic "${w.topic}"`;
+            if (w.isPhrase) return `Mục "Useful Phrases"`;
+            if (w.star) return `Mục "Challenging Words"`;
+            const char = w.word ? w.word.charAt(0).toUpperCase() : "?";
+            return `Mục ${char}`;
+        }
+
         function closeTopicSelector() {
             document.getElementById('topicSelectorOverlay').style.display = 'none';
             currentTopicWordId = null;
@@ -2557,19 +2756,100 @@
         function selectTopic(topicName) {
             if (!currentTopicWordId) return;
             const w = db.words.find(x => x.id === currentTopicWordId);
-            if (w) {
-                if (w.topic !== topicName) {
-                    w.topic = topicName;
-                    pushHistory(); save(); renderAll();
+            if (!w) { closeTopicSelector(); return; }
 
-                    // Optional: Scroll to new location if it moved sections
-                    // But maybe simply staying put or refreshing is fine.
-                    // If we are in A-Z view, it stays. If in Idea view, it might move.
-                    // Let's just flash it.
-                    setTimeout(() => scrollToWord(w), 100);
-                }
+            // Feature: Ask Move vs Copy
+            if (!w.topic && topicName) {
+                // Case: A-Z -> Topic
+                const wordCount = w.word.trim().split(/\s+/).length;
+                const canBePhrase = wordCount >= 2 && !w.isPhrase;
+                const locationText = getWordLocationString(w);
+
+                showOptionDialog(
+                    `Từ "${w.word}" đang ở ${locationText}.`,
+                    "Chuyển vào Topic",
+                    () => {
+                        w.topic = topicName;
+                        pushHistory(); save(); renderAll();
+                        setTimeout(() => { scrollToWord(w); }, 400);
+                    },
+                    "Tạo bản sao",
+                    () => {
+                        const newEntry = { ...w, id: Date.now(), topic: topicName };
+                        db.words.push(newEntry);
+                        pushHistory(); save(); renderAll();
+                        setTimeout(() => { scrollToWord(newEntry); }, 400);
+                    },
+                    canBePhrase ? "Chuyển sang Phrases" : null,
+                    canBePhrase ? () => {
+                        w.isPhrase = true; w.topic = null; w.pos = "phrase";
+                        pushHistory(); save(); renderAll();
+                        setTimeout(() => {
+                            // User Request: Show Topic/Section Title AND First Word
+                            // Here we move to Phrases Section.
+                            scrollToFirst('sec-phrase');
+                        }, 400);
+                    } : null
+                );
+                closeTopicSelector();
+                return;
+            }
+
+            if (w.topic !== topicName) {
+                const locationText = getWordLocationString(w);
+                showOptionDialog(
+                    `Từ "${w.word}" đang ở ${locationText}.`,
+                    "Chuyển sang Topic mới",
+                    () => {
+                        w.topic = topicName;
+                        pushHistory(); save(); renderAll();
+                        setTimeout(() => { scrollToWord(w); }, 400);
+                    },
+                    "Tạo bản sao",
+                    () => {
+                        const newEntry = { ...w, id: Date.now(), topic: topicName };
+                        db.words.push(newEntry);
+                        pushHistory(); save(); renderAll();
+                        setTimeout(() => { scrollToWord(newEntry); }, 400);
+                    }
+                );
+                closeTopicSelector();
+                return;
             }
             closeTopicSelector();
+        }
+
+        function askMoveToPhrases(w) {
+            closeTopicSelector();
+            const locationText = getWordLocationString(w);
+
+            showOptionDialog(
+                `Từ "${w.word}" đang ở ${locationText}.`,
+                "Chuyển sang Phrases", // Action 1: Move (Remove Topic, set Phrase)
+                () => {
+                    w.isPhrase = true;
+                    w.topic = null;
+                    w.pos = "phrase";
+                    pushHistory(); save(); renderAll();
+                    setTimeout(() => {
+                        // User requested: Show THAT word and flash it
+                        scrollToWord(w);
+                    }, 400);
+                },
+                "Tạo bản sao tại Phrases", // Action 2: Copy (Keep old, New Phrase)
+                () => {
+                    const newEntry = {
+                        ...w,
+                        id: Date.now(),
+                        topic: null,
+                        isPhrase: true,
+                        pos: "phrase"
+                    };
+                    db.words.push(newEntry);
+                    pushHistory(); save(); renderAll();
+                    setTimeout(() => { scrollToWord(newEntry); }, 400);
+                }
+            );
         }
 
         function createNewTopicFromSelector() {
