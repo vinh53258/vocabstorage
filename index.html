@@ -949,8 +949,8 @@
                 font-size: 16px;
                 margin: 10px 0 5px 0;
                 padding-left: 5px;
-                top: 105px;
-                /* Mobile: Adjusted to 105px to prevent cutoff */
+                top: 135px;
+                /* Mobile: Tightened to 135px to remove gap */
                 padding: 10px 5px;
                 /* Reduce padding on mobile */
             }
@@ -2229,7 +2229,7 @@
 
                     showOptionDialog(
                         `Từ "${existing.word}" đang ở ${locationText}.`,
-                        "Chuyển vào Topic",
+                        `Chuyển vào "${targetTopic}"`,
                         () => {
                             // MOVE
                             existing.topic = targetTopic;
@@ -2238,12 +2238,12 @@
                             status.innerText = `Đã chuyển vào topic ${targetTopic}`;
                             wordInp.value = "";
                         },
-                        "Tạo bản sao",
+                        `Tạo bản sao ở "${targetTopic}"`,
                         async () => {
                             // COPY (Proceed to Add New)
                             await executeAdd(val, targetTopic, status, wordInp);
                         },
-                        canBePhrase ? "Chuyển sang Phrases" : null,
+                        canBePhrase ? "Chuyển vào \"Useful Phrases\"" : null,
                         canBePhrase ? () => {
                             // MOVE TO PHRASES
                             existing.isPhrase = true;
@@ -2767,20 +2767,20 @@
 
                 showOptionDialog(
                     `Từ "${w.word}" đang ở ${locationText}.`,
-                    "Chuyển vào Topic",
+                    `Chuyển vào "${topicName}"`,
                     () => {
                         w.topic = topicName;
                         pushHistory(); save(); renderAll();
                         setTimeout(() => { scrollToWord(w); }, 400);
                     },
-                    "Tạo bản sao",
+                    `Tạo bản sao ở "${topicName}"`,
                     () => {
                         const newEntry = { ...w, id: Date.now(), topic: topicName };
                         db.words.push(newEntry);
                         pushHistory(); save(); renderAll();
                         setTimeout(() => { scrollToWord(newEntry); }, 400);
                     },
-                    canBePhrase ? "Chuyển sang Phrases" : null,
+                    canBePhrase ? "Chuyển vào \"Useful Phrases\"" : null,
                     canBePhrase ? () => {
                         w.isPhrase = true; w.topic = null; w.pos = "phrase";
                         pushHistory(); save(); renderAll();
@@ -2799,13 +2799,13 @@
                 const locationText = getWordLocationString(w);
                 showOptionDialog(
                     `Từ "${w.word}" đang ở ${locationText}.`,
-                    "Chuyển sang Topic mới",
+                    `Chuyển vào "${topicName}"`,
                     () => {
                         w.topic = topicName;
                         pushHistory(); save(); renderAll();
                         setTimeout(() => { scrollToWord(w); }, 400);
                     },
-                    "Tạo bản sao",
+                    `Tạo bản sao ở "${topicName}"`,
                     () => {
                         const newEntry = { ...w, id: Date.now(), topic: topicName };
                         db.words.push(newEntry);
@@ -2825,7 +2825,7 @@
 
             showOptionDialog(
                 `Từ "${w.word}" đang ở ${locationText}.`,
-                "Chuyển sang Phrases", // Action 1: Move (Remove Topic, set Phrase)
+                "Chuyển vào \"Useful Phrases\"", // Action 1: Move (Remove Topic, set Phrase)
                 () => {
                     w.isPhrase = true;
                     w.topic = null;
@@ -2836,7 +2836,7 @@
                         scrollToWord(w);
                     }, 400);
                 },
-                "Tạo bản sao tại Phrases", // Action 2: Copy (Keep old, New Phrase)
+                "Tạo bản sao ở \"Useful Phrases\"", // Action 2: Copy (Keep old, New Phrase)
                 () => {
                     const newEntry = {
                         ...w,
