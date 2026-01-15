@@ -1116,9 +1116,9 @@
                         onchange="document.getElementById('bulkTopicWrap').style.display=this.checked?'block':'none'">
                     Gán Topic chung?</label>
 
-                <div id="bulkTopicWrap" style="display:none; flex: 1; min-width: 150px;">
+                <div id="bulkTopicWrap" style="display:none; width: 100%; margin-top: 8px;">
                     <input type="text" id="bulkTopicInput" list="topicList" placeholder="Tên Topic chung..."
-                        style="padding:8px 10px; width:100%; border-radius:8px; border:1px solid #ddd; font-size: 13px;">
+                        style="padding:10px; width:100%; border-radius:8px; border:1px solid #ddd; font-size: 14px;">
                 </div>
 
                 <!-- NEW UPLOAD BUTTON -->
@@ -4528,11 +4528,46 @@
                     updateSyncUI();
                     if (user) {
                         console.log("Logged in as: ", user.email);
+                        setupRealtimeListener(user.uid);
+                    } else {
+                        if (unsubscribe) unsubscribe();
                     }
                 });
             } catch (e) {
                 console.error("Firebase Init Error:", e);
             }
+        }
+
+        let unsubscribe = null;
+
+        function setupRealtimeListener(uid) {
+            if (unsubscribe) unsubscribe();
+
+            // LISTEN TO CLOUD CHANGES
+            unsubscribe = firestore.collection('users').doc(uid)
+                .onSnapshot((doc) => {
+                    // Source: 'local' means we wrote it. 'server' means it came from cloud.
+                    const source = doc.metadata.hasPendingWrites ? "Local" : "Server";
+
+                    if (doc.exists && source === 'Server') {
+                        const data = doc.data();
+                        if (data.words && Array.isArray(data.words)) {
+                            console.log("Realtime update received from Cloud.");
+                            // CHECK DIFFERENCE TO AVOID RE-RENDERING IF SAME
+                            if (JSON.stringify(db.words) !== JSON.stringify(data.words)) {
+                                db.words = data.words;
+                                save(); // Save to localStorage
+                                renderAll(); // Update UI
+
+                                // Notify user
+                                const status = document.getElementById('syncStatus');
+                                if (status) status.innerText = "🔄 Đã tự động cập nhật từ máy khác lúc " + new Date().toLocaleTimeString();
+                            }
+                        }
+                    }
+                }, (error) => {
+                    console.log("Listen failed: ", error);
+                });
         }
 
         function updateSyncUI() {
@@ -4585,34 +4620,45 @@
             }
         }
 
-        async function firebaseSyncDown() {
+        async function firebaseSyncDown(isAuto = false) {
             if (!user || !firestore) return;
             const btn = document.querySelector('#syncDashboardView button:nth-child(2)');
-            const originalText = btn.innerHTML;
-            btn.innerText = "⏳ Đang tải về...";
+            if (btn) {
+                var originalText = btn.innerHTML;
+                btn.innerText = "⏳ Đang tải về...";
+            }
 
             try {
                 const doc = await firestore.collection('users').doc(user.uid).get();
                 if (doc.exists) {
                     const data = doc.data();
                     if (data.words && Array.isArray(data.words)) {
-                        if (confirm(`Tìm thấy ${data.words.length} từ trên Cloud. Bạn có muốn ghi đè dữ liệu hiện tại không?`)) {
+                        // Logic: If Auto Mode AND Local is Empty -> Just Do It
+                        if (isAuto && db.words.length === 0) {
+                            db.words = data.words;
+                            save();
+                            renderAll();
+                            document.getElementById('syncStatus').innerText = "Đã tự động tải dữ liệu về lúc " + new Date().toLocaleTimeString();
+                            console.log("Auto-synced down from cloud.");
+                        }
+                        // Normal Mode
+                        else if (confirm(`Tìm thấy ${data.words.length} từ trên Cloud. Bạn có muốn ghi đè dữ liệu hiện tại không?`)) {
                             db.words = data.words;
                             save();
                             renderAll();
                             alert("Đã tải dữ liệu về thành công!");
                             document.getElementById('syncStatus').innerText = "Đã đồng bộ (Về) lúc " + new Date().toLocaleTimeString();
                         }
-                    } else {
+                    } else if (!isAuto) {
                         alert("Không có dữ liệu từ vựng trên Cloud.");
                     }
-                } else {
+                } else if (!isAuto) {
                     alert("Chưa có dữ liệu nào được lưu trên Cloud.");
                 }
             } catch (e) {
-                alert("Lỗi tải về: " + e.message);
+                if (!isAuto) alert("Lỗi tải về: " + e.message);
             } finally {
-                btn.innerHTML = originalText;
+                if (btn) btn.innerHTML = originalText;
             }
         }
 
