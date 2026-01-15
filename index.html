@@ -9,13 +9,18 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+    <!-- FIREBASE SDKs (Modular) - Using 'compat' for ease in single file -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <style>
         /* AUTO-VIRTUALIZATION FOR CARDS */
+        /* AUTO-VIRTUALIZATION REMOVED FOR PRECISION */
         .word-card,
         .section-title {
-            content-visibility: auto;
-            contain-intrinsic-size: 1px 120px;
-            /* Rough estimate of card height */
+            /* content-visibility: auto; */
+            /* contain-intrinsic-size: 1px 120px; */
         }
 
         :root {
@@ -193,6 +198,8 @@
             height: 100vh;
             overflow-y: auto;
             scroll-behavior: smooth;
+            position: relative;
+            /* CRITICAL: Ensures offsetTop recursion stops here */
         }
 
         .header {
@@ -238,10 +245,25 @@
             background: #f1f5f9;
             color: #64748b;
             border: 1px solid #e2e8f0;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
             padding: 0 15px;
             border-radius: 10px;
             cursor: pointer;
             font-size: 18px;
+        }
+
+        .btn-cloud {
+            background: #eff6ff;
+            color: #3b82f6;
+            border: 1px solid #dbeafe;
+            width: 44px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         /* Performance Optimizations */
@@ -327,13 +349,23 @@
             justify-content: space-between;
             align-items: center;
             position: sticky;
-            /* Desktop Sticky Position - ADJUSTED AGAIN */
-            top: 145px;
-            /* 115px was too tight, 170px had gap. Trying 145px. */
+            top: var(--header-height, 145px);
             background: rgba(248, 250, 252, 0.95);
             backdrop-filter: blur(5px);
             z-index: 4;
             box-shadow: 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+            /* Smooth transition for highlight */
+        }
+
+        .section-title.is-pinned {
+            background: #e0f2fe;
+            /* Highlight color */
+            color: #0284c7;
+            border-bottom-color: #0284c7;
+            padding-left: 20px;
+            /* Slight movement */
+            box-shadow: 0 4px 15px -3px rgba(2, 132, 199, 0.2);
         }
 
         .btn-delete-topic {
@@ -949,8 +981,8 @@
                 font-size: 16px;
                 margin: 10px 0 5px 0;
                 padding-left: 5px;
-                top: 135px;
-                /* Mobile: Tightened to 135px to remove gap */
+                top: var(--header-height, 135px);
+                /* Mobile: Uses dynamic height */
                 padding: 10px 5px;
                 /* Reduce padding on mobile */
             }
@@ -1125,6 +1157,88 @@
                 <button class="c-btn" id="confirmOk" style="background: var(--primary); color: white;"
                     onclick="handleConfirm(true)">Xác nhận</button>
             </div>
+        </div>
+    </div>
+
+    <!-- FIREBASE SYNC MODAL -->
+    <div id="syncModal"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:9000; align-items:center; justify-content:center; background:rgba(15, 23, 42, 0.4); backdrop-filter:blur(8px); animation: fadeIn 0.3s;">
+        <div
+            style="background:white; width:400px; max-width:90%; border-radius:30px; padding:35px; box-shadow:0 30px 60px -12px rgba(0,0,0,0.25); text-align:center; position:relative;">
+
+            <button onclick="toggleSyncModal()"
+                style="position:absolute; top:20px; right:20px; background:none; border:none; font-size:24px; color:#94a3b8; cursor:pointer;">&times;</button>
+
+            <div
+                style="width:70px; height:70px; background:#eff6ff; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 20px; color:#3b82f6; font-size:32px;">
+                ☁️
+            </div>
+
+            <h2 style="font-size:24px; color:#1e293b; margin-bottom:10px;">Đồng bộ dữ liệu</h2>
+            <p style="color:#64748b; font-size:14px; margin-bottom:30px;">Lưu trữ từ vựng của bạn an toàn trên đám mây
+                và truy cập từ mọi thiết bị.</p>
+
+            <!-- Login View -->
+            <div id="syncLoginView">
+                <button onclick="firebaseLogin()" class="c-btn"
+                    style="width:100%; background:#white; color:#475569; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; gap:12px; padding:15px; font-size:16px;">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="24">
+                    Đăng nhập bằng Google
+                </button>
+                <p style="font-size:12px; margin-top:15px; color:#ef4444; background:#fef2f2; padding:10px; border-radius:8px; display:none;"
+                    id="firebaseErrorMsg"></p>
+            </div>
+
+            <!-- Dashboard View -->
+            <div id="syncDashboardView" style="display:none;">
+                <div
+                    style="display:flex; align-items:center; gap:15px; background:#f8fafc; padding:15px; border-radius:20px; text-align:left; margin-bottom:20px;">
+                    <img id="userAvatar" src=""
+                        style="width:50px; height:50px; border-radius:50%; border:2px solid white; shadow:0 2px 5px rgba(0,0,0,0.1);">
+                    <div>
+                        <div id="userName" style="font-weight:bold; color:#334155; font-size:16px;">User</div>
+                        <div id="userEmail" style="font-size:12px; color:#94a3b8;">email@gmail.com</div>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:20px;">
+                    <button onclick="firebaseSyncUp()" class="c-btn"
+                        style="background:#dbeafe; color:#1e40af; border:1px solid #bfdbfe;">
+                        ⬆️ Tải lên
+                        <span style="display:block; font-size:10px; opacity:0.7;">Ghi đè Cloud</span>
+                    </button>
+                    <button onclick="firebaseSyncDown()" class="c-btn"
+                        style="background:#dcfce7; color:#166534; border:1px solid #bbf7d0;">
+                        ⬇️ Tải về
+                        <span style="display:block; font-size:10px; opacity:0.7;">Ghi đè Máy</span>
+                    </button>
+                </div>
+
+                <div style="margin-bottom:20px; font-size:12px; color:#64748b;">
+                    Trạng thái: <span id="syncStatus" style="font-weight:bold; color:#10b981;">Đã kết nối</span>
+                </div>
+
+                <button onclick="firebaseLogout()"
+                    style="width:100%; padding:12px; background:none; border:1px solid #e2e8f0; border-radius:12px; color:#ef4444; font-weight:bold; cursor:pointer;">Đăng
+                    xuất</button>
+            </div>
+
+            <!-- Config View (Hidden logic handled in JS) -->
+            <div id="configView"
+                style="display:none; text-align:left; border-top:1px solid #f1f5f9; margin-top:20px; padding-top:20px;">
+                <label style="font-size:12px; font-weight:bold; display:block; margin-bottom:5px;">Firebase Config
+                    (JSON):</label>
+                <textarea id="firebaseConfigInput"
+                    style="width:100%; height:100px; padding:10px; border:1px solid #cbd5e1; border-radius:10px; font-size:11px; font-family:monospace;"
+                    placeholder='{"apiKey": "...", ...}'></textarea>
+                <button onclick="saveFirebaseConfig()" class="c-btn"
+                    style="margin-top:10px; background:#3b82f6; color:white; width:100%;">Lưu Cấu Hình</button>
+            </div>
+
+            <button
+                onclick="document.getElementById('configView').style.display = document.getElementById('configView').style.display==='none'?'block':'none'"
+                style="font-size:10px; color:#cbd5e1; background:none; border:none; margin-top:10px; cursor:pointer;">⚙️
+                Cấu hình</button>
         </div>
     </div>
 
@@ -1324,6 +1438,8 @@
                                 oninput="const val=this.value.trim(); if(window.sectionSorts && window.sectionSorts[`topic-${val}`] !== undefined || db.words.some(w=>w.topic===val)) scrollToFirst(`topic-${val}`)">
                             <datalist id="topicList"></datalist>
                         </div>
+                        <button class="btn-cloud" onclick="toggleSyncModal()" title="Đồng bộ Đám Mây"
+                            style="margin-left:8px;">☁️</button>
                     </div>
                     <div class="history-controls" style="display:flex; align-items:center;">
                         <!-- Jump Topic Moved Up -->
@@ -1429,9 +1545,47 @@
             pushHistory();
             migrateData();
             updateToggleIcons(); // Sync icons
+
+            // Dynamic Header Height & Scroll Handler
+            updateHeaderHeight();
+            window.addEventListener('resize', updateHeaderHeight);
+
+            // Sticky Highlight Listener
+            const scrollContainer = document.getElementById('mainScroll');
+            scrollContainer.addEventListener('scroll', () => {
+                const headerH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-height')) || 100;
+                document.querySelectorAll('.section-title').forEach(el => {
+                    const rect = el.getBoundingClientRect();
+                    // Check if it's hitting the sticky top (header height)
+                    // We stick at 'top', so rect.top should be close to headerHeight + containerOffset (if any)
+                    // In this layout, container starts at top 0 relative to viewport? No, body has header?
+                    // The .header is sticky inside wrapper? NO.
+                    // .header is INSIDE .main-wrapper.
+                    // The wrapper scrolls. The header sticks to wrapper top.
+                    // So rect.top of section-title relative to VIEWPORT should be around header.getBoundingClientRect().bottom
+
+                    const headerRect = document.querySelector('.header').getBoundingClientRect();
+                    // Tolerance 2px
+                    if (rect.top <= headerRect.bottom + 2) {
+                        el.classList.add('is-pinned');
+                    } else {
+                        el.classList.remove('is-pinned');
+                    }
+                });
+            });
+
             renderAll();
             renderAll();
             checkYesterdayReview();
+        }
+
+        function updateHeaderHeight() {
+            const header = document.querySelector('.header');
+            if (header) {
+                const h = header.offsetHeight;
+                // Update CSS variable
+                document.documentElement.style.setProperty('--header-height', h + 'px');
+            }
         }
 
         let saveTimer;
@@ -2144,8 +2298,15 @@
 
         function askDeleteWord(id) {
             showConfirm("Bạn chắc chắn muốn xóa từ này?", () => {
+                // Save Scroll Position
+                const scrollContainer = document.getElementById('mainScroll');
+                const savedPos = scrollContainer.scrollTop;
+
                 db.words = db.words.filter(w => w.id !== id);
                 pushHistory(); save(); renderAll();
+
+                // Restore Scroll Position
+                scrollContainer.scrollTop = savedPos;
             });
         }
 
@@ -2436,7 +2597,9 @@
 
         function flashElement(el) {
             if (!el) return;
-            el.scrollIntoView({ block: 'center', behavior: 'smooth' }); // Backup native scroll
+            // REMOVED: el.scrollIntoView({ block: 'center', behavior: 'smooth' }); 
+            // Reason: This overrides 'safeScrollTo' positioning, causing headers to appear in the middle instead of top.
+
             el.classList.add('flash-effect');
             el.style.transition = 'background 0.5s';
             const oldBg = el.style.background;
@@ -2448,63 +2611,87 @@
         }
 
         // Helper for offset scrolling
-        function safeScrollTo(element, block = 'start') {
+        // Helper for offset scrolling
+        // Helper for offset scrolling
+        function safeScrollTo(element, block = 'start', extraGap = 0) {
             const container = document.querySelector('.main-wrapper');
             if (!container || !element) return;
 
             const header = document.querySelector('.header');
-            const headerHeight = header ? header.offsetHeight : 60; // Default estimate
+            const headerHeight = header ? header.offsetHeight : 60;
 
-            const elRect = element.getBoundingClientRect();
-            const containerRect = container.getBoundingClientRect();
+            // USE OFFSET-TOP RECURSION
+            let elTop = 0;
+            let el = element;
+            while (el && el !== container) {
+                elTop += el.offsetTop;
+                el = el.offsetParent;
+                if (!el && container !== document.body) {
+                    const pageElTop = element.getBoundingClientRect().top + window.scrollY;
+                    const pageContTop = container.getBoundingClientRect().top + window.scrollY;
+                    elTop = pageElTop - pageContTop + container.scrollTop;
+                    break;
+                }
+            }
 
-            // Calculate relative position within the scrollable content
             let targetOffset = 0;
 
             if (block === 'start') {
-                // FIXED: Scroll exactly to top with visual padding
-                // element Top relative to Container Top
-                const relativeTop = elRect.top - containerRect.top;
-                targetOffset = container.scrollTop + relativeTop - headerHeight - 10;
-            } else if (block === 'center') {
-                // Center logic:
-                // element Top relative to Container Top
-                const relativeTop = elRect.top - containerRect.top;
+                const isMobile = window.innerWidth < 900;
+                // Base gap 15px
+                const gap = 15;
+                targetOffset = elTop - headerHeight - extraGap - gap;
+            } else {
                 const viewHeight = container.clientHeight;
-                // Center of view = viewHeight / 2
-                // Center of element = element.clientHeight / 2
-                targetOffset = container.scrollTop + relativeTop - (viewHeight / 2) + (element.clientHeight / 2);
+                targetOffset = elTop - (viewHeight / 2) + (element.clientHeight / 2);
             }
 
-            // Ensure we don't scroll past min/max
             targetOffset = Math.max(0, targetOffset);
 
+            // 1. Smooth Scroll
             container.scrollTo({ top: targetOffset, behavior: 'smooth' });
+
+            // 2. Correction Logic (Fix for bottom-up accuracy)
+            setTimeout(() => {
+                const current = container.scrollTop;
+                if (Math.abs(current - targetOffset) > 2) {
+                    container.scrollTo({ top: targetOffset, behavior: 'auto' });
+                }
+            }, 550);
         }
 
         function scrollToFirst(id) {
-            const destEl = document.getElementById(id);
+            const destEl = document.getElementById(id); // Section Title
             if (!destEl) return;
 
-            // Scroll to Section Header ("Make screen display topic name")
-            safeScrollTo(destEl, 'start');
+            // STRATEGY CHANGE: Target the First Word instead of the Title.
+            // Why? Title is sticky. Calculating "where to stop so sticky title is correct" is hard.
+            // Calculating "Show me the first word, but leave room for the title above it" is safer.
 
-            // Flash FIRST WORD ("and first word")
-            setTimeout(() => {
-                // Find first card in this section
-                // Try nextSibling first (often the body)
+            let firstCard = null;
+
+            // 1. Try finding first card via structure
+            let sectionGroup = destEl.closest('.section-group');
+            if (sectionGroup) {
+                firstCard = sectionGroup.querySelector('.section-body .word-card');
+            } else {
+                // Fallback scan
                 let body = destEl.nextElementSibling;
                 while (body && !body.classList.contains('section-body')) {
                     body = body.nextElementSibling;
                 }
+                if (body) firstCard = body.querySelector('.word-card');
+            }
 
-                if (body && body.classList.contains('section-body')) {
-                    const firstCard = body.querySelector('.word-card');
-                    if (firstCard) {
-                        flashElement(firstCard);
-                    }
-                }
-            }, 400); // increased delay to allow scroll to settle
+            if (firstCard) {
+                // Scroll to WORD, leaving room for TITLE (extraGap)
+                const titleHeight = destEl.offsetHeight || 60;
+                safeScrollTo(firstCard, 'start', titleHeight);
+                setTimeout(() => flashElement(firstCard), 600);
+            } else {
+                // If empty section, just scroll to Title
+                safeScrollTo(destEl, 'start');
+            }
         }
 
         function showCelebration() {
@@ -3735,6 +3922,9 @@
         let bulkSelectedIds = new Set();
 
         function toggleBulkDeleteMode() {
+            const scrollContainer = document.getElementById('mainScroll');
+            const savedPos = scrollContainer ? scrollContainer.scrollTop : 0;
+
             window.isBulkDelete = !window.isBulkDelete;
             bulkSelectedIds.clear(); // clear selection on toggle
 
@@ -3753,6 +3943,8 @@
                 fab.style.display = 'none';
             }
             renderAll();
+
+            if (scrollContainer) scrollContainer.scrollTop = savedPos;
         }
 
         function toggleSelectWord(id) {
@@ -4278,6 +4470,155 @@
             document.getElementById('bulkArea').value = "";
             setTimeout(() => status.innerText = "", 4000);
         }
+        // --- FIREBASE INTEGRATION ---
+
+        let dbRef = null;
+        let auth = null;
+        let firestore = null;
+        let user = null;
+
+        function toggleSyncModal() {
+            if (window.location.protocol === 'file:') {
+                alert("⚠️ CẢNH BÁO: Firebase Google Login không chạy được trên file://\nBạn hãy dùng 'Live Server' hoặc localhost để tính năng này hoạt động.");
+            }
+
+            const m = document.getElementById('syncModal');
+            m.style.display = m.style.display === 'flex' ? 'none' : 'flex';
+
+            // Config is now hardcoded. No UI check needed.
+        }
+
+        function saveFirebaseConfig() {
+            const val = document.getElementById('firebaseConfigInput').value;
+            try {
+                const parsed = JSON.parse(val);
+                localStorage.setItem('vocab_firebase_config', JSON.stringify(parsed));
+                location.reload(); // Reload to init
+            } catch (e) {
+                alert("Config không hợp lệ (Phải là JSON)");
+            }
+        }
+
+        function initFirebase() {
+            // HARDCODED CONFIG PROVIDED BY USER
+            const firebaseConfig = {
+                apiKey: "AIzaSyDb6rIAW7rkwSpsAwd_XHWGjQVsb89fLoc",
+                authDomain: "vocabstorage-64109.firebaseapp.com",
+                projectId: "vocabstorage-64109",
+                storageBucket: "vocabstorage-64109.firebasestorage.app",
+                messagingSenderId: "663555072662",
+                appId: "1:663555072662:web:f9a8895b1e5d9f41e518b7"
+            };
+
+            if (typeof firebase === 'undefined') {
+                console.error("Firebase SDK not loaded.");
+                return;
+            }
+
+            try {
+                // Check if already init
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                auth = firebase.auth();
+                firestore = firebase.firestore();
+
+                auth.onAuthStateChanged(u => {
+                    user = u;
+                    updateSyncUI();
+                    if (user) {
+                        console.log("Logged in as: ", user.email);
+                    }
+                });
+            } catch (e) {
+                console.error("Firebase Init Error:", e);
+            }
+        }
+
+        function updateSyncUI() {
+            const loginView = document.getElementById('syncLoginView');
+            const dashView = document.getElementById('syncDashboardView');
+
+            if (user) {
+                loginView.style.display = 'none';
+                dashView.style.display = 'block';
+                document.getElementById('userAvatar').src = user.photoURL || 'https://ui-avatars.com/api/?name=' + user.displayName;
+                document.getElementById('userName').innerText = user.displayName;
+                document.getElementById('userEmail').innerText = user.email;
+            } else {
+                loginView.style.display = 'block';
+                dashView.style.display = 'none';
+            }
+        }
+
+        function firebaseLogin() {
+            if (!auth) return alert("Chưa cấu hình Firebase! Bấm ⚙️ Cấu hình");
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).catch(e => {
+                document.getElementById('firebaseErrorMsg').innerText = "Lỗi Login: " + e.message;
+                document.getElementById('firebaseErrorMsg').style.display = 'block';
+                alert("Lỗi đăng nhập: " + e.message + "\n(Vui lòng đảm bảo bạn đang chạy trên Localhost, không phải file://)");
+            });
+        }
+
+        function firebaseLogout() {
+            if (auth) auth.signOut();
+        }
+
+        async function firebaseSyncUp() {
+            if (!user || !firestore) return;
+            const btn = document.querySelector('#syncDashboardView button:nth-child(1)');
+            const originalText = btn.innerHTML;
+            btn.innerText = "⏳ Đang tải lên...";
+
+            try {
+                await firestore.collection('users').doc(user.uid).set({
+                    words: db.words, // Store entire array
+                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                document.getElementById('syncStatus').innerText = "Đã đồng bộ (Lên) lúc " + new Date().toLocaleTimeString();
+                setTimeout(() => alert("Đã tải dữ liệu lên đám mây thành công!"), 100);
+            } catch (e) {
+                alert("Lỗi tải lên: " + e.message);
+            } finally {
+                btn.innerHTML = originalText;
+            }
+        }
+
+        async function firebaseSyncDown() {
+            if (!user || !firestore) return;
+            const btn = document.querySelector('#syncDashboardView button:nth-child(2)');
+            const originalText = btn.innerHTML;
+            btn.innerText = "⏳ Đang tải về...";
+
+            try {
+                const doc = await firestore.collection('users').doc(user.uid).get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    if (data.words && Array.isArray(data.words)) {
+                        if (confirm(`Tìm thấy ${data.words.length} từ trên Cloud. Bạn có muốn ghi đè dữ liệu hiện tại không?`)) {
+                            db.words = data.words;
+                            save();
+                            renderAll();
+                            alert("Đã tải dữ liệu về thành công!");
+                            document.getElementById('syncStatus').innerText = "Đã đồng bộ (Về) lúc " + new Date().toLocaleTimeString();
+                        }
+                    } else {
+                        alert("Không có dữ liệu từ vựng trên Cloud.");
+                    }
+                } else {
+                    alert("Chưa có dữ liệu nào được lưu trên Cloud.");
+                }
+            } catch (e) {
+                alert("Lỗi tải về: " + e.message);
+            } finally {
+                btn.innerHTML = originalText;
+            }
+        }
+
+        // Initialize App
+        init();
+        setTimeout(initFirebase, 1000); // Lazy load firebase 
     </script>
 </body>
 
