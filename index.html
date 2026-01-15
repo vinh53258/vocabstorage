@@ -1440,28 +1440,27 @@
                         </div>
                     </div>
                     <!-- Cloud Button Moved to Right Sidebar -->
-                </div>
-                <div class="history-controls" style="display:flex; align-items:center;">
-                    <!-- Jump Topic Moved Up -->
-                    <button class="history-btn" id="undoBtn" onclick="undo()" disabled title="Lùi lại">↩
-                        Undo</button>
-                    <button class="history-btn" id="redoBtn" onclick="redo()" disabled title="Tiến tới">Redo
-                        ↪</button>
-                    <button class="history-btn" id="bulkDelBtn" onclick="toggleBulkDeleteMode()"
-                        title="Chế độ xóa nhiều">🗑️ Xóa nhiều</button>
-                </div>
+                    <div class="history-controls" style="display:flex; align-items:center;">
+                        <!-- Jump Topic Moved Up -->
+                        <button class="history-btn" id="undoBtn" onclick="undo()" disabled title="Lùi lại">↩
+                            Undo</button>
+                        <button class="history-btn" id="redoBtn" onclick="redo()" disabled title="Tiến tới">Redo
+                            ↪</button>
+                        <button class="history-btn" id="bulkDelBtn" onclick="toggleBulkDeleteMode()"
+                            title="Chế độ xóa nhiều">🗑️ Xóa nhiều</button>
+                    </div>
 
 
-                <!-- Floating Delete Button -->
-                <button id="fabDelete" onclick="execBulkDelete()"
-                    style="display:none; position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:var(--danger); color:white; padding:15px 30px; border-radius:30px; font-weight:bold; box-shadow:0 10px 25px rgba(220,38,38,0.4); z-index:4000; border:none; font-size:16px; cursor:pointer;">XÓA
-                    0 MỤC</button>
+                    <!-- Floating Delete Button -->
+                    <button id="fabDelete" onclick="execBulkDelete()"
+                        style="display:none; position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:var(--danger); color:white; padding:15px 30px; border-radius:30px; font-weight:bold; box-shadow:0 10px 25px rgba(220,38,38,0.4); z-index:4000; border:none; font-size:16px; cursor:pointer;">XÓA
+                        0 MỤC</button>
+                </div>
+
+                <div id="status" style="height:20px; margin-top:5px; color:var(--primary); font-weight: bold;"></div>
             </div>
-
-            <div id="status" style="height:20px; margin-top:5px; color:var(--primary); font-weight: bold;"></div>
         </div>
-    </div>
-    <div class="content" id="dictContainer"></div>
+        <div class="content" id="dictContainer"></div>
     </div>
 
     <div class="sidebar-right">
@@ -1591,12 +1590,24 @@
         }
 
         let saveTimer;
+        // SMART SYNC FLAG
+        let hasUnsyncedChanges = false;
+
         function save() {
             // Debounce Save to prevent UI freeze on rapid updates
             clearTimeout(saveTimer);
             saveTimer = setTimeout(() => {
-                localStorage.setItem('vocab_v6_pro', JSON.stringify(db));
-            }, 500);
+                localStorage.setItem('vocab_db_pro_v5', JSON.stringify(db));
+                hasUnsyncedChanges = true; // Mark as dirty when saved locally
+
+                // AUTO SYNC FIREBASE
+                if (window.user && window.firestore) {
+                    // The 1-minute interval will pick this up.
+                    // Or we can leave this "immediate" attempt if desired, but user wants 1-min interval.
+                    // The setInterval below handles the 1-min rule.
+                }
+
+            }, 500); // 500ms debounce
         }
 
         function renderAll() {
@@ -1869,6 +1880,7 @@
             if (addedCount > 0) {
                 pushHistory();
                 save();
+                hasUnsyncedChanges = true; // Mark dirty
                 renderAll();
             }
             status.innerText = `Hoàn tất! Đã thêm ${addedCount} từ vựng Tiếng Anh chuẩn.`;
@@ -3643,6 +3655,7 @@
                 a.download = `vocab_export_${new Date().getTime()}.doc`;
                 a.click();
                 document.body.removeChild(a);
+                hasUnsyncedChanges = true; // Mark dirty
             });
         }
 
@@ -3989,6 +4002,7 @@
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
+                hasUnsyncedChanges = true; // Mark dirty
             });
         }
 
@@ -4532,10 +4546,14 @@
                         console.log("Logged in as: ", user.email);
                         setupRealtimeListener(user.uid);
 
-                        // AUTO UPLOAD EVERY 1 MINUTE
+                        // AUTO UPLOAD EVERY 1 MINUTE (SMART SYNC)
                         setInterval(() => {
-                            console.log("Auto-upload triggered (1 min interval)");
-                            firebaseSyncUp(true); // Silent mode
+                            if (hasUnsyncedChanges) {
+                                console.log("Auto-upload triggered (Changes detected)");
+                                firebaseSyncUp(true); // Silent mode
+                            } else {
+                                console.log("Skipping upload - No local changes.");
+                            }
                         }, 1 * 60 * 1000);
 
                     } else {
@@ -4629,9 +4647,11 @@
                     console.log("Background upload success.");
                     const s = document.getElementById('syncStatus');
                     if (s) s.innerText = "Đã tự động sao lưu lên Cloud lúc " + new Date().toLocaleTimeString();
+                    hasUnsyncedChanges = false; // Reset dirty flag
                 } else {
                     document.getElementById('syncStatus').innerText = "Đã đồng bộ (Lên) lúc " + new Date().toLocaleTimeString();
                     setTimeout(() => alert("Đã tải dữ liệu lên đám mây thành công!"), 100);
+                    hasUnsyncedChanges = false; // Reset dirty flag
                 }
             } catch (e) {
                 if (!isAuto) alert("Lỗi tải lên: " + e.message);
