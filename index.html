@@ -1438,30 +1438,30 @@
                                 oninput="const val=this.value.trim(); if(window.sectionSorts && window.sectionSorts[`topic-${val}`] !== undefined || db.words.some(w=>w.topic===val)) scrollToFirst(`topic-${val}`)">
                             <datalist id="topicList"></datalist>
                         </div>
-                        <button class="btn-cloud" onclick="toggleSyncModal()" title="Đồng bộ Đám Mây"
-                            style="margin-left:8px;">☁️</button>
                     </div>
-                    <div class="history-controls" style="display:flex; align-items:center;">
-                        <!-- Jump Topic Moved Up -->
-                        <button class="history-btn" id="undoBtn" onclick="undo()" disabled title="Lùi lại">↩
-                            Undo</button>
-                        <button class="history-btn" id="redoBtn" onclick="redo()" disabled title="Tiến tới">Redo
-                            ↪</button>
-                        <button class="history-btn" id="bulkDelBtn" onclick="toggleBulkDeleteMode()"
-                            title="Chế độ xóa nhiều">🗑️ Xóa nhiều</button>
-                    </div>
-
-
-                    <!-- Floating Delete Button -->
-                    <button id="fabDelete" onclick="execBulkDelete()"
-                        style="display:none; position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:var(--danger); color:white; padding:15px 30px; border-radius:30px; font-weight:bold; box-shadow:0 10px 25px rgba(220,38,38,0.4); z-index:4000; border:none; font-size:16px; cursor:pointer;">XÓA
-                        0 MỤC</button>
+                    <!-- Cloud Button Moved to Right Sidebar -->
+                </div>
+                <div class="history-controls" style="display:flex; align-items:center;">
+                    <!-- Jump Topic Moved Up -->
+                    <button class="history-btn" id="undoBtn" onclick="undo()" disabled title="Lùi lại">↩
+                        Undo</button>
+                    <button class="history-btn" id="redoBtn" onclick="redo()" disabled title="Tiến tới">Redo
+                        ↪</button>
+                    <button class="history-btn" id="bulkDelBtn" onclick="toggleBulkDeleteMode()"
+                        title="Chế độ xóa nhiều">🗑️ Xóa nhiều</button>
                 </div>
 
-                <div id="status" style="height:20px; margin-top:5px; color:var(--primary); font-weight: bold;"></div>
+
+                <!-- Floating Delete Button -->
+                <button id="fabDelete" onclick="execBulkDelete()"
+                    style="display:none; position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:var(--danger); color:white; padding:15px 30px; border-radius:30px; font-weight:bold; box-shadow:0 10px 25px rgba(220,38,38,0.4); z-index:4000; border:none; font-size:16px; cursor:pointer;">XÓA
+                    0 MỤC</button>
             </div>
+
+            <div id="status" style="height:20px; margin-top:5px; color:var(--primary); font-weight: bold;"></div>
         </div>
-        <div class="content" id="dictContainer"></div>
+    </div>
+    <div class="content" id="dictContainer"></div>
     </div>
 
     <div class="sidebar-right">
@@ -1476,6 +1476,8 @@
         </div>
         <div class="special-btn" onclick="toggleCalendar(); event.stopPropagation()"
             style="background:var(--primary); color:white; border:none; margin-top:10px">📅 LỊCH</div>
+        <div class="special-btn" onclick="toggleSyncModal(); event.stopPropagation()"
+            style="background:#3b82f6; color:white; border:none; margin-top:10px">☁️ CLOUD</div>
     </div>
 
     <div id="calContainer" onclick="event.stopPropagation()">
@@ -4529,6 +4531,13 @@
                     if (user) {
                         console.log("Logged in as: ", user.email);
                         setupRealtimeListener(user.uid);
+
+                        // AUTO UPLOAD EVERY 1 MINUTE
+                        setInterval(() => {
+                            console.log("Auto-upload triggered (1 min interval)");
+                            firebaseSyncUp(true); // Silent mode
+                        }, 1 * 60 * 1000);
+
                     } else {
                         if (unsubscribe) unsubscribe();
                     }
@@ -4600,23 +4609,35 @@
             if (auth) auth.signOut();
         }
 
-        async function firebaseSyncUp() {
+        async function firebaseSyncUp(isAuto = false) {
             if (!user || !firestore) return;
             const btn = document.querySelector('#syncDashboardView button:nth-child(1)');
-            const originalText = btn.innerHTML;
-            btn.innerText = "⏳ Đang tải lên...";
+            let originalText = "";
+
+            if (!isAuto && btn) {
+                originalText = btn.innerHTML;
+                btn.innerText = "⏳ Đang tải lên...";
+            }
 
             try {
                 await firestore.collection('users').doc(user.uid).set({
                     words: db.words, // Store entire array
                     lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                document.getElementById('syncStatus').innerText = "Đã đồng bộ (Lên) lúc " + new Date().toLocaleTimeString();
-                setTimeout(() => alert("Đã tải dữ liệu lên đám mây thành công!"), 100);
+
+                if (isAuto) {
+                    console.log("Background upload success.");
+                    const s = document.getElementById('syncStatus');
+                    if (s) s.innerText = "Đã tự động sao lưu lên Cloud lúc " + new Date().toLocaleTimeString();
+                } else {
+                    document.getElementById('syncStatus').innerText = "Đã đồng bộ (Lên) lúc " + new Date().toLocaleTimeString();
+                    setTimeout(() => alert("Đã tải dữ liệu lên đám mây thành công!"), 100);
+                }
             } catch (e) {
-                alert("Lỗi tải lên: " + e.message);
+                if (!isAuto) alert("Lỗi tải lên: " + e.message);
+                else console.error("Auto upload failed:", e);
             } finally {
-                btn.innerHTML = originalText;
+                if (!isAuto && btn) btn.innerHTML = originalText;
             }
         }
 
