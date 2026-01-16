@@ -1464,6 +1464,9 @@
     </div>
 
     <div class="sidebar-right">
+        <input type="text" placeholder="🔍 Tìm Topic..."
+            style="width:100%; height:32px; flex:none; padding:4px; margin-bottom:5px; border-radius:6px; border:1px solid #e2e8f0; font-size:10px; outline:none; text-align:center;"
+            oninput="filterTopicNav(this.value)">
         <div class="right-nav-list">
 
             <div id="topicNav" style="display:flex; flex-direction:column; gap:8px"></div>
@@ -2071,7 +2074,8 @@
             header.id = sectionId;
 
             if (isTopic) {
-                const tName = titleText.replace('# ', ''); // Raw topic name
+                const rawName = titleText.replace('# ', '');
+                const tName = capitalizeFirstOnly(rawName);
 
                 // ContentEditable Title
                 const titleSpan = document.createElement("span");
@@ -2243,7 +2247,7 @@
             // Basically: Hide if suffix === 'topic'.
             const shouldShowTopic = w.topic && suffix !== 'topic';
             const topicHtml = shouldShowTopic
-                ? `<span class="topic-badge" onclick="scrollToId('word-${w.id}-topic', true); event.stopPropagation();" title="Đến mục Topic này"># ${w.topic}</span>`
+                ? `<span class="topic-badge" onclick="scrollToId('word-${w.id}-topic', true); event.stopPropagation();" title="Đến mục Topic này"># ${capitalizeFirstOnly(w.topic)}</span>`
                 : '';
 
             // Phrase click handler
@@ -3062,7 +3066,24 @@
 
         function openBulk() { document.getElementById('bulkOverlay').style.display = 'flex'; }
         function closeBulk() { document.getElementById('bulkOverlay').style.display = 'none'; }
-        function toggleTopicInput() { document.getElementById('topicGroup').style.display = document.getElementById('topicCheck').checked ? 'block' : 'none'; }
+        function toggleTopicInput() {
+            document.getElementById('topicGroup').style.display = document.getElementById('topicCheck').checked ? 'block' : 'none';
+            setTimeout(updateHeaderHeight, 10);
+        }
+
+        function updateHeaderHeight() {
+            const h = document.querySelector('.header').offsetHeight;
+            document.documentElement.style.setProperty('--header-height', h + 'px');
+        }
+
+        function filterTopicNav(query) {
+            const q = query.toLowerCase().trim();
+            const btns = document.querySelectorAll('#topicNav .btn-topic');
+            btns.forEach(b => {
+                const txt = b.innerText.replace('#', '').trim().toLowerCase();
+                b.style.display = txt.includes(q) ? 'flex' : 'none';
+            });
+        }
 
         function checkYesterdayReview() {
             const yesterday = new Date();
@@ -3518,16 +3539,16 @@
             topics.forEach(t => {
                 const btn = document.createElement("div");
                 btn.className = "special-btn btn-topic";
-                btn.innerText = `# ${t}`;
+                btn.innerText = `# ${capitalizeFirstOnly(t)}`;
                 btn.onclick = () => {
                     scrollToFirst(`topic-${t}`);
                     // SYNC TOPIC INPUT
                     const topInp = document.getElementById('topicInput');
-                    topInp.value = t;
+                    topInp.value = capitalizeFirstOnly(t);
                 };
                 topicNav.appendChild(btn);
             });
-            datalist.innerHTML = topics.map(t => `<option value="${t}">`).join('');
+            datalist.innerHTML = topics.map(t => `<option value="${capitalizeFirstOnly(t)}">`).join('');
 
 
         }
@@ -4075,6 +4096,8 @@
         };
 
         init();
+        window.addEventListener('resize', updateHeaderHeight);
+        setTimeout(updateHeaderHeight, 500);
 
         // --- NEW APPENDED LOGIC ---
         // Updated Bulk Add - SMART PARSER V4 (Batch + NLP)
