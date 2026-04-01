@@ -1537,6 +1537,15 @@
             return clean.charAt(0).toUpperCase() + clean.slice(1);
         }
 
+        function normalizeTopicName(inputTopic) {
+            if (!inputTopic) return null;
+            let clean = inputTopic.trim();
+            if (!clean) return null;
+            let existing = db.words.find(w => w.topic && w.topic.toLowerCase() === clean.toLowerCase());
+            if (existing) return existing.topic;
+            return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
+        }
+
         // --- CORE ENGINE ---
 
         function init() {
@@ -2394,8 +2403,8 @@
             const existing = db.words.find(w => w.word.toLowerCase() === val.toLowerCase());
 
             // NEW FEATURE: if existing in A-Z (no topic) and we are assigning a Topic -> Ask Move vs Copy
-            const rawTargetTopic = topicCheck.checked ? topicInp.value.trim() : null;
-            const targetTopic = rawTargetTopic ? capitalizeFirstOnly(rawTargetTopic) : null;
+            let targetTopic = topicCheck.checked ? topicInp.value.trim() : null;
+            if (targetTopic) targetTopic = normalizeTopicName(targetTopic);
 
             if (existing) {
                 if (targetTopic && !existing.topic) {
@@ -2452,7 +2461,7 @@
         async function executeAdd(val, topicName, statusEl, inputEl) {
             statusEl.style.color = "var(--primary)";
             statusEl.innerText = "Searching...";
-            inputEl.value = "";
+            if (inputEl) inputEl.value = "";
             try {
                 // PARALLEL EXECUTION: Faster!
                 const [extra, trans] = await Promise.all([
@@ -3631,8 +3640,7 @@
                 w.meaning = document.getElementById('editMeaningInput').value.trim();
                 w.pos = document.getElementById('editPosInput').value.trim();
                 w.example = document.getElementById('editExampleInput').value.trim();
-                const eTopic = document.getElementById('editTopicInput').value.trim();
-                w.topic = eTopic ? capitalizeFirstOnly(eTopic) : null;
+                w.topic = normalizeTopicName(document.getElementById('editTopicInput').value.trim());
                 pushHistory(); save(); renderAll();
             }
             closeEditWord();
@@ -3654,12 +3662,25 @@
         async function migrateData() {
             let changed = false;
             if (!db.words) db.words = [];
+            
+            // Collect standard casing for existing topics
+            let standardTopics = {};
+            for (let w of db.words) {
+                if (w.topic) {
+                    let lowered = w.topic.toLowerCase();
+                    if (!standardTopics[lowered]) {
+                        standardTopics[lowered] = w.topic.charAt(0).toUpperCase() + w.topic.slice(1).toLowerCase();
+                    }
+                }
+            }
+            
+            // Apply standard casing
             for (let w of db.words) { 
                 if (!w.date) { w.date = new Date().toISOString().split('T')[0]; changed = true; } 
                 if (w.topic) {
-                    let norm = capitalizeFirstOnly(w.topic);
-                    if (w.topic !== norm) {
-                        w.topic = norm;
+                    let lowered = w.topic.toLowerCase();
+                    if (w.topic !== standardTopics[lowered]) {
+                        w.topic = standardTopics[lowered];
                         changed = true;
                     }
                 }
@@ -3694,9 +3715,9 @@
         // --- SMART IMPORT V4 (2-PASS FILTER) ---
         async function handleDocImport() {
             const file = document.getElementById('docFileInp').files[0];
-            let topicRaw = document.getElementById('docTopicInput').value.trim();
-            if (!topicRaw) topicRaw = "General"; // Default topic if empty
-            let topic = capitalizeFirstOnly(topicRaw);
+            let topic = document.getElementById('docTopicInput').value.trim();
+            if (!topic) topic = "General"; // Default topic if empty
+            topic = normalizeTopicName(topic);
 
             const status = document.getElementById('docStatus');
             const pBar = document.getElementById('docProgressBar');
@@ -4280,8 +4301,8 @@
         async function handleBulkAddV4() {
             const text = document.getElementById('bulkArea').value;
             const topicCheck = document.getElementById('bulkTopicCheck').checked;
-            const commonTopicRaw = document.getElementById('bulkTopicInput').value.trim();
-            const commonTopic = commonTopicRaw ? capitalizeFirstOnly(commonTopicRaw) : null;
+            let commonTopic = document.getElementById('bulkTopicInput').value.trim();
+            if (commonTopic) commonTopic = normalizeTopicName(commonTopic);
             const currentBatchId = Date.now(); // Batch ID
             const status = document.getElementById('status');
 
