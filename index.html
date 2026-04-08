@@ -1496,7 +1496,7 @@
          * VOCAB HUB PRO - ENGINE V7
          */
 
-        let db = JSON.parse(localStorage.getItem('vocab_v6_pro')) || { words: [] };
+        let db = JSON.parse(localStorage.getItem('vocab_db_pro_v5')) || JSON.parse(localStorage.getItem('vocab_v6_pro')) || { words: [] };
 
         // Undo/Redo Stacks
         let historyStack = [];
@@ -1611,14 +1611,6 @@
             saveTimer = setTimeout(() => {
                 localStorage.setItem('vocab_db_pro_v5', JSON.stringify(db));
                 hasUnsyncedChanges = true; // Mark as dirty when saved locally
-
-                // AUTO SYNC FIREBASE
-                if (window.user && window.firestore) {
-                    // The 1-minute interval will pick this up.
-                    // Or we can leave this "immediate" attempt if desired, but user wants 1-min interval.
-                    // The setInterval below handles the 1-min rule.
-                }
-
             }, 500); // 500ms debounce
         }
 
@@ -4639,8 +4631,12 @@
                             console.log("Realtime update received from Cloud.");
                             // CHECK DIFFERENCE TO AVOID RE-RENDERING IF SAME
                             if (JSON.stringify(db.words) !== JSON.stringify(data.words)) {
+                                if (hasUnsyncedChanges) {
+                                    console.log("Ignored Cloud update because local changes are pending.");
+                                    return;
+                                }
                                 db.words = data.words;
-                                save(); // Save to localStorage
+                                localStorage.setItem('vocab_db_pro_v5', JSON.stringify(db));
                                 renderAll(); // Update UI
 
                                 // Notify user
@@ -4684,8 +4680,9 @@
             if (auth) auth.signOut();
         }
 
+        let isUploading = false;
         async function firebaseSyncUp(isAuto = false) {
-            if (!user || !firestore) return;
+            if (!user || !firestore || isUploading) return;
             const btn = document.querySelector('#syncDashboardView button:nth-child(1)');
             let originalText = "";
 
@@ -4694,26 +4691,34 @@
                 btn.innerText = "⏳ Đang tải lên...";
             }
 
+            isUploading = true;
+            const snapshotStr = JSON.stringify(db.words);
+            const snapshotObj = JSON.parse(snapshotStr);
+
             try {
                 await firestore.collection('users').doc(user.uid).set({
-                    words: db.words, // Store entire array
+                    words: snapshotObj, // Store snapshot
                     lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
                 });
+
+                // Clear flag ONLY if db.words hasn't been modified during upload
+                if (JSON.stringify(db.words) === snapshotStr) {
+                    hasUnsyncedChanges = false; 
+                }
 
                 if (isAuto) {
                     console.log("Background upload success.");
                     const s = document.getElementById('syncStatus');
                     if (s) s.innerText = "Đã tự động sao lưu lên Cloud lúc " + new Date().toLocaleTimeString();
-                    hasUnsyncedChanges = false; // Reset dirty flag
                 } else {
                     document.getElementById('syncStatus').innerText = "Đã đồng bộ (Lên) lúc " + new Date().toLocaleTimeString();
                     setTimeout(() => alert("Đã tải dữ liệu lên đám mây thành công!"), 100);
-                    hasUnsyncedChanges = false; // Reset dirty flag
                 }
             } catch (e) {
                 if (!isAuto) alert("Lỗi tải lên: " + e.message);
                 else console.error("Auto upload failed:", e);
             } finally {
+                isUploading = false;
                 if (!isAuto && btn) btn.innerHTML = originalText;
             }
         }
@@ -4734,7 +4739,8 @@
                         // Logic: If Auto Mode AND Local is Empty -> Just Do It
                         if (isAuto && db.words.length === 0) {
                             db.words = data.words;
-                            save();
+                            localStorage.setItem('vocab_db_pro_v5', JSON.stringify(db));
+                            hasUnsyncedChanges = false;
                             renderAll();
                             document.getElementById('syncStatus').innerText = "Đã tự động tải dữ liệu về lúc " + new Date().toLocaleTimeString();
                             console.log("Auto-synced down from cloud.");
@@ -4742,7 +4748,8 @@
                         // Normal Mode
                         else if (confirm(`Tìm thấy ${data.words.length} từ trên Cloud. Bạn có muốn ghi đè dữ liệu hiện tại không?`)) {
                             db.words = data.words;
-                            save();
+                            localStorage.setItem('vocab_db_pro_v5', JSON.stringify(db));
+                            hasUnsyncedChanges = false;
                             renderAll();
                             alert("Đã tải dữ liệu về thành công!");
                             document.getElementById('syncStatus').innerText = "Đã đồng bộ (Về) lúc " + new Date().toLocaleTimeString();
